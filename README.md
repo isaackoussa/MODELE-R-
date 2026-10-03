@@ -12,6 +12,7 @@ Rscript scoring_particuliers.R    # défaut des emprunteurs particuliers à 12 m
 | Fichier | Rôle |
 |---------|------|
 | `scoring_complet.R` | **tout en un seul fichier** (fonctions + les deux modèles), à copier-coller dans RStudio |
+| `tester_une_entreprise.R` | exemple prêt à l'emploi : noter 3 entreprises fictives (saine, moyenne, fragile) |
 | `fonctions_scoring.R` | boîte à outils commune : binning monotone, WoE/IV, sélection, grille de points, classes de risque, validation, PSI, équité |
 | `scoring_entreprises.R` | ratios financiers issus du bilan, score, notation de 1 à 8, recalibrage sur un taux de défaut de cycle |
 | `scoring_particuliers.R` | score d'octroi, seuil d'acceptation optimisé sur la rentabilité, motifs de refus, audit d'équité |

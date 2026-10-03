@@ -83,7 +83,8 @@ simuler_entreprises <- function(n = 15000) {
 calculer_ratios <- function(d) {
   div <- function(a, b) ifelse(is.finite(a / b) & b != 0, a / b, NA)
   data.frame(
-    id = d$id, annee = d$annee, defaut = d$defaut,
+    id = d$id, annee = d$annee,
+    defaut = if (is.null(d$defaut)) NA else d$defaut,   # inconnu pour une nouvelle entreprise
     secteur = d$secteur,
     age = d$age,
     log_effectif = log(d$effectif),
