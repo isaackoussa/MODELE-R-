@@ -106,6 +106,10 @@ défaut, score, classe de risque, ce qui pénalise le plus et détail des points
 - **Enregistrer** : donner un nom au dossier puis « Enregistrer ». Les dossiers se rouvrent, se mettent à jour,
   se suppriment et s'exportent en CSV pour Excel. Ouverte depuis l'ordinateur ou GitHub Pages, l'application
   les garde dans le navigateur (sur cet appareil uniquement).
+- **Lire un bilan** (onglet Entreprise) : déposer les comptes annuels en PDF ou en Excel ; l'application retrouve
+  les postes du bilan et du compte de résultat (plan comptable français ou SYSCOHADA, net de l'exercice, conversion en
+  milliers), les affiche pour vérification puis remplit le formulaire. Dans la version claude.ai, Claude lit aussi les
+  photos et les PDF scannés.
 - **Fichier Excel** : onglet « Fichier Excel », déposer un classeur (une ligne par dossier). Les colonnes sont
   reconnues automatiquement ; pour chaque ligne : score, probabilité de défaut, classe, points faibles et points
   forts interprétés, conclusion. Résumé des points marquants du fichier, export CSV, enregistrement des dossiers,

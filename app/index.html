@@ -39,6 +39,7 @@
   --bad: #e2664f; --focus: #6fd0c3; color-scheme: dark;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body {
   margin: 0; background: var(--bg); color: var(--ink);
   font: 15px/1.5 var(--f-body); font-variant-numeric: tabular-nums;
@@ -195,6 +196,17 @@ details.dossier .nom { font: 700 16px var(--f-display); flex: 1 1 180px; min-wid
 .pts li em { font-style: normal; color: var(--muted); font-size: 13px; margin-left: 6px; }
 details.points > summary { cursor: pointer; color: var(--accent); font-size: 14px; }
 .erreur { color: var(--bad); }
+
+/* Lecture d'un bilan */
+fieldset.lecture { border-color: var(--accent); }
+.lecture .ligne { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.lecture .note { margin: 0 0 10px; }
+.lecture.survol { background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+.revue { display: grid; gap: 10px; margin-top: 12px; }
+.revue table input { width: 100%; min-width: 90px; font: 500 14px var(--f-body); color: var(--ink); background: var(--sunken); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font-variant-numeric: tabular-nums; }
+.revue td.origine { color: var(--muted); font-size: 12px; max-width: 360px; overflow-wrap: anywhere; }
+.revue td.absent { color: var(--bad); }
+.revue .remarque { font-size: 13px; color: var(--muted); margin: 0; }
 
 @media (max-width: 880px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
@@ -473,6 +485,7 @@ function construireFormulaire() {
     ex.appendChild(b);
   });
   f.appendChild(ex);
+  if (typeActif === "entreprise") f.appendChild(blocLectureBilan());
   cfg.groupes.forEach(g => {
     const fs = document.createElement("fieldset");
     fs.innerHTML = `<legend>${g.titre}</legend>`;
@@ -769,6 +782,321 @@ $("liste-dossiers").addEventListener("click", e => {
   if (!b) return;
   if (b.dataset.action === "ouvrir") ouvrir(b.dataset.id); else supprimer(b.dataset.id);
 });
+
+// ---------------------------------------------------------------------------
+// Lecture d'un bilan (PDF, photo, Excel) pour remplir le formulaire entreprise
+//   - version Claude : Claude lit le document et renvoie les chiffres ;
+//   - ailleurs : lecture automatique des libellés du plan comptable (PCG, SYSCOHADA).
+// ---------------------------------------------------------------------------
+const CHAMPS_BILAN = [
+  ["chiffre_affaires", "Chiffre d'affaires"], ["ebe", "Excédent brut d'exploitation (EBE)"], ["total_actif", "Total du bilan"],
+  ["fonds_propres", "Fonds propres"], ["dettes_financieres", "Dettes financières"], ["tresorerie", "Trésorerie"],
+  ["actif_circulant", "Actif circulant"], ["passif_circulant", "Passif circulant"], ["creances_clients", "Créances clients"],
+  ["effectif", "Effectif"], ["incidents_paiement", "Incidents de paiement"],
+];
+const PDFJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+const scriptsCharges = {};
+function chargerScript(url) {
+  if (!scriptsCharges[url]) scriptsCharges[url] = new Promise((ok, ko) => {
+    const el = document.createElement("script"); el.src = url; el.onload = ok; el.onerror = () => ko(new Error(url));
+    document.head.appendChild(el);
+  });
+  return scriptsCharges[url];
+}
+let SAMPLE = undefined;                                   // undefined : pas encore cherché ; null : indisponible
+async function claudeLecteur() {
+  if (SAMPLE !== undefined) return SAMPLE;
+  SAMPLE = null;
+  if (window.claude && typeof window.claude.use === "function") {
+    try { SAMPLE = await window.claude.use("sample"); } catch (e) { SAMPLE = null; }
+  }
+  return SAMPLE;
+}
+
+function blocLectureBilan() {
+  const fs = document.createElement("fieldset");
+  fs.className = "lecture";
+  fs.innerHTML = `<legend>Lire un bilan</legend>
+    <p class="note">Déposez les comptes annuels de l'entreprise (PDF, photo ou Excel) : l'application retrouve les chiffres et remplit le formulaire. Vous vérifiez avant de valider.</p>
+    <div class="ligne">
+      <label class="principal" for="fichier-bilan">Choisir le bilan</label>
+      <input class="cache" type="file" id="fichier-bilan" accept=".pdf,.xlsx,.xls,.xlsm,.csv,image/*">
+      <button type="button" class="secondaire" id="stop-bilan" hidden>Arrêter</button>
+      <span class="note" id="etat-bilan" role="status" style="margin:0"></span>
+    </div>
+    <div class="revue" id="revue-bilan"></div>`;
+  const entree = fs.querySelector("#fichier-bilan");
+  entree.addEventListener("change", e => { e.stopPropagation(); if (entree.files[0]) lireBilan(entree.files[0]); entree.value = ""; });
+  entree.addEventListener("input", e => e.stopPropagation());
+  ["dragenter", "dragover"].forEach(ev => fs.addEventListener(ev, e => { e.preventDefault(); fs.classList.add("survol"); }));
+  ["dragleave", "drop"].forEach(ev => fs.addEventListener(ev, e => { e.preventDefault(); fs.classList.remove("survol"); }));
+  fs.addEventListener("drop", e => { const f = e.dataTransfer.files[0]; if (f) lireBilan(f); });
+  return fs;
+}
+
+function etatBilan(t, erreur) { const x = $("etat-bilan"); if (x) { x.textContent = t; x.className = "note" + (erreur ? " erreur" : ""); x.style.margin = "0"; } }
+
+// Texte d'un PDF, ligne par ligne (les morceaux de même hauteur sont regroupés)
+async function textePdf(fichier) {
+  await chargerScript(PDFJS + "pdf.min.js");
+  await chargerScript(PDFJS + "pdf.worker.min.js");        // permet la lecture sans « worker » séparé
+  const lib = window.pdfjsLib;
+  lib.GlobalWorkerOptions.workerSrc = PDFJS + "pdf.worker.min.js";
+  const doc = await lib.getDocument({ data: new Uint8Array(await fichier.arrayBuffer()) }).promise;
+  const lignes = [], pages = [];
+  for (let n = 1; n <= Math.min(doc.numPages, 15); n++) {
+    const page = await doc.getPage(n);
+    const contenu = await page.getTextContent();
+    const parY = new Map();
+    contenu.items.forEach(it => {
+      if (!it.str || !it.str.trim()) return;
+      const y = Math.round(it.transform[5] / 3) * 3;
+      if (!parY.has(y)) parY.set(y, []);
+      parY.get(y).push({ x: it.transform[4], t: it.str });
+    });
+    [...parY.entries()].sort((a, b) => b[0] - a[0]).forEach(([, items]) =>
+      lignes.push(items.sort((a, b) => a.x - b.x).map(i => i.t).join("  ").replace(/\s{3,}/g, "  ")));
+    pages.push(page);
+  }
+  return { texte: lignes.join("\n"), lignes, pages };
+}
+
+async function imagesPages(pages, max) {
+  const blobs = [];
+  for (const page of pages.slice(0, max)) {
+    const vue = page.getViewport({ scale: 1.6 });
+    const c = document.createElement("canvas"); c.width = vue.width; c.height = vue.height;
+    await page.render({ canvasContext: c.getContext("2d"), viewport: vue }).promise;
+    blobs.push(await new Promise(ok => c.toBlob(ok, "image/png")));
+  }
+  return blobs;
+}
+
+function texteExcel(donnees) {
+  const classeur = XLSX.read(donnees, { type: "array" });
+  const lignes = [];
+  classeur.SheetNames.forEach(n => {
+    XLSX.utils.sheet_to_json(classeur.Sheets[n], { header: 1, defval: "", blankrows: false })
+      .forEach(l => { const t = l.map(v => String(v).trim()).filter(Boolean).join("  "); if (t) lignes.push(t); });
+  });
+  return { texte: lignes.join("\n"), lignes };
+}
+
+// --- Lecture automatique (sans Claude) : libellés du PCG et du SYSCOHADA ---
+const RX_NOMBRE = /\(?-?\d{1,3}(?:[   .]\d{3})+(?:,\d+)?\)?|\(?-?\d+(?:[.,]\d+)?\)?/g;
+function nombresDe(t) {
+  return (t.match(RX_NOMBRE) || []).map(x => {
+    const neg = /^\(.*\)$/.test(x) || x.startsWith("-");
+    let v = x.replace(/[()\-\s  ]/g, "");
+    v = /\.\d{3}(\.|$)/.test(v) ? v.replace(/\./g, "") : v;
+    v = Number(v.replace(",", "."));
+    return Number.isFinite(v) ? (neg ? -v : v) : NaN;
+  }).filter(Number.isFinite);
+}
+const rxSouple = new Map();
+function valeurApres(ligne, rx) {
+  // libellé cherché sur une version du texte de même longueur (sans accents, ponctuation -> espace)
+  if (!rxSouple.has(rx)) rxSouple.set(rx, new RegExp(rx.source.replace(/ /g, "\\s+")));
+  const base = sansAccent(ligne).toLowerCase();
+  const m = base.replace(/[^a-z0-9]/g, " ").match(rxSouple.get(rx));
+  if (!m) return null;
+  const reste = base.slice(m.index + m[0].length);
+  let vals = nombresDe(reste);
+  // une année isolée (ex. « exercice 2024 ») n'est pas un montant
+  const annees = new Set((reste.match(/(^|[^\d\s.])\s*(20[0-3]\d)(?![\d.,]|\s\d{3})/g) || []).map(x => Number(x.slice(-4))));
+  if (vals.length > 1 && annees.size) vals = vals.filter(v => !annees.has(v));
+  if (vals.length > 1 && Math.abs(vals[0]) < 100 && vals.some(v => Math.abs(v) >= 1000)) vals = vals.filter(v => Math.abs(v) >= 100 || v === 0);
+  if (!vals.length) return null;
+  // actif : brut, amortissements, net N, net N-1 -> net N ; passif et résultat : N, N-1 -> N
+  if (vals.length >= 4) return vals[2];
+  if (vals.length === 3) {
+    if (Math.abs(vals[0] - vals[1] - vals[2]) <= Math.max(1, 0.001 * Math.abs(vals[0]))) return vals[2];
+    if (vals[0] === vals[1]) return vals[1];
+  }
+  return vals[0];
+}
+function chercher(lignes, motifs) {
+  for (const rx of motifs) for (const l of lignes) {
+    const v = valeurApres(l, rx);
+    if (v !== null) return { v, ligne: l.trim().slice(0, 140) };
+  }
+  return null;
+}
+function lectureAutomatique(lignes, texte) {
+  const R = {}, origine = {};
+  const prendre = (champ, motifs) => { const t = chercher(lignes, motifs); if (t) { R[champ] = t.v; origine[champ] = "ligne : « " + t.ligne + " »"; } };
+  prendre("chiffre_affaires", [/chiffres? d affaires nets?/, /chiffre d affaires/, /montant net du chiffre d affaires/]);
+  prendre("ebe", [/excedent brut d exploitation/, /\bebe\b/]);
+  prendre("total_actif", [/total general/, /total du bilan/, /total bilan/, /total actif(?! (circulant|immobilise))/]);
+  prendre("fonds_propres", [/total capitaux propres/, /capitaux propres et ressources assimilees/, /capitaux propres/, /total fonds propres/]);
+  prendre("tresorerie", [/total tresorerie actif/, /tresorerie actif/, /disponibilites/]);
+  prendre("actif_circulant", [/total actif circulant/, /actif circulant/]);
+  prendre("passif_circulant", [/total passif circulant/, /passif circulant/]);
+  prendre("creances_clients", [/clients et comptes rattaches/, /creances clients/, /clients/]);
+  prendre("effectif", [/effectif moyen/, /effectifs?/]);
+  // dettes financières : établissements de crédit + dettes financières diverses
+  const credit = chercher(lignes, [/emprunts et dettes aupres des etablissements de credit/]);
+  const divers = chercher(lignes, [/emprunts et dettes financieres divers/]);
+  if (credit || divers) {
+    R.dettes_financieres = (credit ? credit.v : 0) + (divers ? divers.v : 0);
+    origine.dettes_financieres = [credit, divers].filter(Boolean).map(x => "« " + x.ligne + " »").join(" + ");
+  } else prendre("dettes_financieres", [/total dettes financieres/, /dettes financieres/, /emprunts et dettes financieres/]);
+  // EBE absent : résultat d'exploitation + dotations aux amortissements et provisions
+  if (!("ebe" in R)) {
+    const rex = chercher(lignes, [/resultat d exploitation/]), dot = chercher(lignes, [/dotations aux amortissements/]);
+    if (rex) { R.ebe = rex.v + (dot ? dot.v : 0); origine.ebe = "calculé : résultat d'exploitation" + (dot ? " + dotations aux amortissements" : ""); }
+  }
+  // passif circulant absent : total des dettes - dettes financières
+  if (!("passif_circulant" in R)) {
+    const td = chercher(lignes, [/total des dettes/, /total dettes/]);
+    if (td) { R.passif_circulant = td.v - (R.dettes_financieres || 0); origine.passif_circulant = "calculé : total des dettes − dettes financières"; }
+  }
+  let nom = null;
+  for (const l of lignes) {
+    const m = l.match(/(?:d[ée]nomination|raison sociale)\s*:?\s*(.+)/i);
+    if (m) { nom = m[1].replace(/\s{2,}.*/, "").replace(/\s+(exercice|clos|du|au|siren|siret|rccm|n°)\b.*$/i, "").trim(); break; }
+  }
+  const t = sansAccent(texte).toLowerCase();
+  const devise = /fcfa|f cfa|xof|xaf|\bcfa\b/.test(t) ? "FCFA" : null;
+  const unite = /en millions/.test(t) ? "millions" : /(en milliers|k€|keur|kfcfa|milliers d)/.test(t) ? "milliers"
+    : (Math.abs(R.total_actif || R.chiffre_affaires || 0) >= 100000 ? "unités" : "milliers");
+  return { nom, unite, devise, valeurs: R, origine, remarques: "", source: "lecture automatique" };
+}
+
+// --- Lecture par Claude (version claude.ai) ---
+async function lectureClaude(sample, texte, images, signal) {
+  const consigne = `Tu lis les comptes annuels d'une entreprise (bilan, compte de résultat, liasse fiscale ; plan comptable français ou SYSCOHADA).
+Extrais les chiffres de l'exercice le plus récent. Réponds uniquement avec un objet JSON de cette forme :
+{"nom": string|null, "exercice": string|null, "devise": string|null, "unite": "unités"|"milliers"|"millions",
+ "secteur": "Industrie"|"Commerce"|"BTP"|"Services"|"Transport"|"Hôtellerie-restauration"|null,
+ "effectif": number|null, "chiffre_affaires": number|null, "ebe": number|null, "total_actif": number|null,
+ "fonds_propres": number|null, "dettes_financieres": number|null, "tresorerie": number|null,
+ "actif_circulant": number|null, "passif_circulant": number|null, "creances_clients": number|null,
+ "incidents_paiement": number|null, "remarques": string}
+Règles :
+- montants tels qu'écrits dans le document, dans son unité (indique-la dans "unite"), négatifs avec un signe moins ;
+- ebe : excédent brut d'exploitation ; s'il n'apparaît pas, résultat d'exploitation + dotations aux amortissements et provisions − reprises ;
+- total_actif : total général du bilan ; fonds_propres : total des capitaux propres ;
+- dettes_financieres : emprunts et dettes auprès des établissements de crédit + emprunts et dettes financières divers ;
+- tresorerie : disponibilités + valeurs mobilières de placement (SYSCOHADA : trésorerie-actif) ;
+- passif_circulant : dettes à moins d'un an hors dettes financières (fournisseurs, fiscales et sociales, autres) ;
+- creances_clients : clients et comptes rattachés ; secteur : déduit de l'activité si possible ;
+- null pour toute valeur absente : n'invente jamais un chiffre ;
+- remarques : une ou deux phrases en français sur ce que tu as calculé ou dû déduire.`;
+  const entree = texte && texte.trim().length > 200
+    ? consigne + "\n\nTexte extrait du document :\n" + texte.slice(0, 80000)
+    : consigne + "\n\nLe document est fourni en image(s).";
+  const options = { signal };
+  if (images && images.length) options.images = images;
+  const j = await sample.json(entree, options);
+  const valeurs = {}, origine = {};
+  CHAMPS_BILAN.forEach(([c]) => {
+    const v = j[c] === null || j[c] === undefined ? NaN : nombre(j[c]);
+    if (Number.isFinite(v)) { valeurs[c] = v; origine[c] = "lu par Claude"; }
+  });
+  return { nom: j.nom || null, unite: j.unite || "unités", valeurs, origine, secteur: j.secteur || null,
+           exercice: j.exercice || null, devise: j.devise || null, remarques: j.remarques || "", source: "Claude" };
+}
+
+let ctlBilan = null;
+async function lireBilan(fichier) {
+  const revue = $("revue-bilan"); revue.innerHTML = "";
+  const nomF = fichier.name.toLowerCase();
+  const estPdf = /\.pdf$/.test(nomF) || fichier.type === "application/pdf";
+  const estImage = /^image\//.test(fichier.type);
+  const estExcel = /\.(xlsx|xls|xlsm|csv)$/.test(nomF);
+  if (!estPdf && !estImage && !estExcel) { etatBilan("Format non pris en charge : PDF, image (photo, scan) ou Excel.", true); return; }
+  const sample = await claudeLecteur();
+  let texte = "", lignes = [], images = null;
+  try {
+    etatBilan(`Lecture de « ${fichier.name} »…`);
+    if (estPdf) {
+      const r = await textePdf(fichier); texte = r.texte; lignes = r.lignes;
+      if (texte.replace(/\s/g, "").length < 200) {                       // PDF scanné : pas de texte
+        if (!sample) { etatBilan("Ce PDF est une image scannée : sa lecture nécessite la version Claude de l'application. Saisissez les chiffres à la main ou utilisez un PDF texte.", true); return; }
+        const lim = await sample.limits().catch(() => null);
+        if (!lim || !lim.images) { etatBilan("Ce PDF est une image scannée et la lecture d'images n'est pas disponible ici.", true); return; }
+        images = await imagesPages(r.pages, Math.min(lim.images.maxCount, 4));
+      }
+    } else if (estExcel) {
+      if (typeof XLSX === "undefined") { etatBilan("Le lecteur Excel n'a pas pu être chargé : rechargez la page.", true); return; }
+      const r = texteExcel(new Uint8Array(await fichier.arrayBuffer())); texte = r.texte; lignes = r.lignes;
+    } else {
+      if (!sample) { etatBilan("La lecture d'une photo nécessite la version Claude de l'application. Ici, utilisez un PDF ou un fichier Excel.", true); return; }
+      const lim = await sample.limits().catch(() => null);
+      if (!lim || !lim.images) { etatBilan("La lecture de photos n'est pas disponible ici : utilisez un PDF ou un Excel.", true); return; }
+      images = [fichier];
+    }
+  } catch (e) {
+    etatBilan("Impossible de lire ce fichier" + (estPdf ? " (le lecteur PDF demande une connexion internet)." : "."), true); return;
+  }
+
+  let res = null;
+  if (sample) {
+    ctlBilan = new AbortController();
+    const stop = $("stop-bilan"); stop.hidden = false; stop.onclick = () => ctlBilan.abort();
+    etatBilan("Claude lit le document… (de quelques secondes à une minute)");
+    try { res = await lectureClaude(sample, texte, images, ctlBilan.signal); }
+    catch (e) {
+      const code = e && e.code;
+      if (code === "cancelled") { etatBilan("Lecture arrêtée."); stop.hidden = true; return; }
+      if (!lignes.length) { etatBilan(code === "rate_limited" ? "Trop de demandes : réessayez dans un moment." : "Claude n'a pas pu lire ce document.", true); stop.hidden = true; return; }
+      etatBilan("Claude n'est pas disponible : lecture automatique des libellés à la place.");
+    }
+    stop.hidden = true;
+  }
+  if (!res) res = lectureAutomatique(lignes, texte);
+  afficherRevueBilan(res, fichier.name);
+}
+
+function enMilliers(v, unite) {
+  if (!Number.isFinite(v)) return v;
+  const x = unite === "millions" ? v * 1000 : unite === "unités" ? v / 1000 : v;
+  return Math.round(x * 10) / 10;
+}
+
+function afficherRevueBilan(res, nomFichier) {
+  const trouves = CHAMPS_BILAN.filter(([c]) => Number.isFinite(res.valeurs[c])).length;
+  const essentiels = ["chiffre_affaires", "ebe", "total_actif", "fonds_propres"].filter(c => !Number.isFinite(res.valeurs[c]));
+  etatBilan(`${trouves} chiffre(s) sur ${CHAMPS_BILAN.length} retrouvé(s) dans « ${nomFichier} » (${res.source}). Vérifiez-les, corrigez si besoin, puis validez.`, false);
+  const devise = res.devise && !/eur|€/i.test(res.devise) ? res.devise : null;
+  const uniteTexte = { unités: "en unités", milliers: "en milliers", millions: "en millions" }[res.unite] || res.unite;
+  const ligne = ([c, lib]) => {
+    const brut = res.valeurs[c];
+    const val = c === "effectif" || c === "incidents_paiement" ? brut : enMilliers(brut, res.unite);
+    const ok = Number.isFinite(val);
+    return `<tr><td>${lib}</td>
+      <td><input type="number" step="any" id="bilan-${c}" value="${ok ? val : ""}" placeholder="non trouvé"></td>
+      <td class="origine ${ok ? "" : "absent"}">${ok ? echapper(res.origine[c] || "") : c === "incidents_paiement" ? "absent des bilans : indiquez 0 s'il n'y en a pas" : "non trouvé : à saisir"}</td></tr>`;
+  };
+  $("revue-bilan").innerHTML = `
+    ${res.nom || res.exercice ? `<p class="remarque"><b>${echapper(res.nom || "")}</b>${res.exercice ? ` · exercice ${echapper(res.exercice)}` : ""}${res.secteur ? ` · secteur ${echapper(res.secteur)}` : ""}</p>` : ""}
+    <p class="remarque">Montants convertis en milliers (le document est ${uniteTexte}${devise ? `, en ${echapper(devise)}` : ""}). ${devise ? "La devise ne change pas la note : seuls les ratios comptent." : ""}</p>
+    ${res.remarques ? `<p class="remarque">${echapper(res.remarques)}</p>` : ""}
+    ${essentiels.length ? `<p class="remarque erreur">Chiffres essentiels non trouvés : ${essentiels.map(c => CHAMPS_BILAN.find(x => x[0] === c)[1].toLowerCase()).join(", ")}. Complétez-les ci-dessous.</p>` : ""}
+    <div class="tableau"><table>
+      <thead><tr><th>Poste</th><th>Valeur (k)</th><th>Origine</th></tr></thead>
+      <tbody>${CHAMPS_BILAN.map(ligne).join("")}</tbody>
+    </table></div>
+    <div class="ligne">
+      <button type="button" class="principal" id="valider-bilan">Utiliser ces chiffres</button>
+      <button type="button" class="secondaire" id="annuler-bilan">Annuler</button>
+    </div>`;
+  $("revue-bilan").querySelectorAll("input").forEach(i => i.addEventListener("input", e => e.stopPropagation()));
+  $("annuler-bilan").onclick = () => { $("revue-bilan").innerHTML = ""; etatBilan(""); };
+  $("valider-bilan").onclick = () => {
+    const valeurs = {};
+    CHAMPS_BILAN.forEach(([c]) => { const x = $(`bilan-${c}`).value; valeurs[c] = x === "" ? "" : Number(x); });
+    if (res.secteur && SECTEURS.includes(res.secteur)) valeurs.secteur = res.secteur;
+    remplir(valeurs);
+    marquerExemple(null);
+    dossierCourant = null;
+    if (res.nom) $("nom-dossier").value = res.nom;
+    majBouton(); calculer(); afficherDossiers();
+    $("revue-bilan").innerHTML = "";
+    etatBilan("Chiffres reportés dans le formulaire : la note est calculée à droite." + (res.secteur ? "" : " Vérifiez le secteur."));
+  };
+}
 
 function afficherVue(vue) {
   const fichier = vue === "fichier";
