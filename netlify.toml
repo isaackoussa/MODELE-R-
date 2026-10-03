@@ -1,0 +1,4 @@
+# Netlify publie l'application web (dossier app/) à la racine du site.
+[build]
+  publish = "app"
+  command = ""
