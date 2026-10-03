@@ -1,0 +1,4 @@
+"modele";"gini_test";"gini_hors_periode"
+"Grille de score (logistique WoE)";0,508465495738284;0,533914188647555
+"Elastic net (WoE)";0,48681428487773;0,506612398366225
+"Forêt aléatoire (brut)";0,467760845540368;0,500933312974768
