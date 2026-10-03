@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Note de crédit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Public+Sans:wght@400;500;600&display=swap">
+<style>
+/* Mise en page : formulaire à gauche, verdict collant à droite ; une colonne (verdict en tête) sur téléphone */
+:root {
+  --bg: #eef2f1;
+  --surface: #ffffff;
+  --sunken: #f5f8f7;
+  --ink: #13201c;
+  --muted: #586a64;
+  --line: #d3dcd9;
+  --accent: #0d5c55;
+  --accent-ink: #ffffff;
+  --good: #2c8655;
+  --warn: #c98a12;
+  --bad: #c0402c;
+  --focus: #1b8f84;
+  --f-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1614; --surface: #15201d; --sunken: #111b18; --ink: #e3ebe8; --muted: #93a59f;
+    --line: #293733; --accent: #4fb2a5; --accent-ink: #08201c; --good: #4fb07a; --warn: #e0a83a;
+    --bad: #e2664f; --focus: #6fd0c3; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1614; --surface: #15201d; --sunken: #111b18; --ink: #e3ebe8; --muted: #93a59f;
+  --line: #293733; --accent: #4fb2a5; --accent-ink: #08201c; --good: #4fb07a; --warn: #e0a83a;
+  --bad: #e2664f; --focus: #6fd0c3; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 var(--f-body); font-variant-numeric: tabular-nums;
+}
+.page > *, .layout > * { min-width: 0; }
+.page { max-width: 1180px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 48px; display: grid; gap: 20px; }
+header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 16px; }
+h1 { font: 800 clamp(26px, 4vw, 34px)/1.05 var(--f-display); letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); margin: 4px 0 0; max-width: 60ch; }
+.tabs { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 4px; gap: 4px; }
+.tabs button {
+  font: 600 14px var(--f-display); letter-spacing: .02em; border: 0; border-radius: 7px; padding: 9px 16px;
+  background: transparent; color: var(--muted); cursor: pointer;
+}
+.tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.avert { font-size: 13px; color: var(--muted); border-left: 3px solid var(--warn); padding: 6px 12px; background: var(--surface); border-radius: 0 6px 6px 0; }
+
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 20px; align-items: start; }
+.form { display: grid; gap: 16px; min-width: 0; }
+.exemples { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.exemples span { font-size: 13px; color: var(--muted); margin-right: 4px; }
+.chip {
+  font: 500 13px var(--f-body); border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  border-radius: 999px; padding: 6px 12px; cursor: pointer;
+}
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+fieldset { margin: 0; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 14px 16px 16px; min-width: 0; }
+legend { font: 700 12px var(--f-display); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 0 6px; }
+.champs { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px 16px; }
+label { display: grid; gap: 4px; font-size: 13px; font-weight: 500; align-content: end; }
+label small { color: var(--muted); font-weight: 400; }
+.saisie { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 7px; background: var(--sunken); }
+.saisie:focus-within { border-color: var(--focus); }
+.saisie input, select {
+  width: 100%; min-width: 0; font: 500 15px var(--f-body); font-variant-numeric: tabular-nums; color: var(--ink);
+  background: transparent; border: 0; padding: 8px 10px;
+}
+select { border: 1px solid var(--line); border-radius: 7px; background: var(--sunken); }
+.saisie input:focus-visible { outline: none; }
+.unite { color: var(--muted); font-size: 13px; padding-right: 10px; white-space: nowrap; }
+
+.verdict { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); display: grid; gap: 14px; min-width: 0; }
+.carte { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: grid; gap: 14px; }
+.eyebrow { font: 700 12px var(--f-display); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.pd { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.pd strong { font: 800 46px/1 var(--f-display); letter-spacing: -0.02em; }
+.pd span { color: var(--muted); font-size: 14px; }
+.chiffres { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.chiffre { background: var(--sunken); border-radius: 8px; padding: 10px 12px; }
+.chiffre b { display: block; font: 700 22px/1.1 var(--f-display); }
+.chiffre small { color: var(--muted); font-size: 12px; }
+.echelle { display: grid; gap: 3px; }
+.echelle .cases { display: grid; gap: 3px; }
+.echelle .case {
+  height: 30px; border-radius: 4px; display: grid; place-items: center; font: 700 13px var(--f-display);
+  color: #fff; opacity: .28; transition: opacity .2s, transform .2s;
+}
+.echelle .case.actif { opacity: 1; transform: scaleY(1.18); box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
+.echelle .legende { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+.decision { font: 800 18px var(--f-display); letter-spacing: .03em; text-transform: uppercase; padding: 10px 14px; border-radius: 8px; text-align: center; }
+.decision.ok { background: color-mix(in srgb, var(--good) 16%, transparent); color: var(--good); }
+.decision.ko { background: color-mix(in srgb, var(--bad) 16%, transparent); color: var(--bad); }
+.motifs { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.motifs li { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.motifs li em { font-style: normal; color: var(--bad); font-weight: 600; white-space: nowrap; }
+.motifs .rien { color: var(--muted); }
+
+.detail { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+.detail h2 { font: 700 16px var(--f-display); margin: 0 0 10px; }
+.tableau { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; font: 600 12px var(--f-display); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); }
+td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+td.n { text-align: right; white-space: nowrap; }
+.barre { width: 110px; height: 8px; background: var(--sunken); border-radius: 4px; overflow: hidden; border: 1px solid var(--line); }
+.barre i { display: block; height: 100%; background: var(--accent); }
+.note { font-size: 13px; color: var(--muted); margin: 10px 0 0; max-width: 75ch; }
+
+@media (max-width: 880px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .verdict { position: static; order: -1; }
+}
+@media (prefers-reduced-motion: reduce) { .echelle .case { transition: none; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="top">
+    <div>
+      <h1>Note de crédit</h1>
+      <p class="sub">Renseignez la situation, la note se met à jour à chaque saisie : probabilité de défaut à 12 mois, score et ce qui pèse le plus.</p>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Type de dossier">
+      <button role="tab" id="onglet-entreprise" aria-selected="true">Entreprise</button>
+      <button role="tab" id="onglet-particulier" aria-selected="false">Particulier</button>
+    </div>
+  </header>
+
+  <p class="avert">Modèles entraînés sur des données simulées : les chiffres illustrent la méthode. Réentraînez-les sur vos données réelles avant tout usage pour une décision de crédit.</p>
+
+  <div class="layout">
+    <form class="form" id="formulaire" autocomplete="off"></form>
+    <aside class="verdict" aria-live="polite">
+      <section class="carte">
+        <div class="eyebrow" id="titre-verdict">Risque de défaillance à 12 mois</div>
+        <div class="pd"><strong id="pd">–</strong><span id="pd-texte"></span></div>
+        <div class="decision" id="decision" hidden></div>
+        <div class="chiffres">
+          <div class="chiffre"><b id="score">–</b><small>score (600 = 1 défaut sur <span id="cote">50</span>)</small></div>
+          <div class="chiffre"><b id="classe">–</b><small>classe de risque</small></div>
+        </div>
+        <div class="echelle">
+          <div class="cases" id="cases"></div>
+          <div class="legende"><span>1 · meilleur risque</span><span id="legende-max">risque le plus élevé</span></div>
+        </div>
+      </section>
+      <section class="carte">
+        <div class="eyebrow">Ce qui pénalise le plus</div>
+        <ul class="motifs" id="motifs"></ul>
+      </section>
+    </aside>
+  </div>
+
+  <section class="detail">
+    <h2>Détail du calcul</h2>
+    <div class="tableau">
+      <table>
+        <thead><tr><th>Critère</th><th>Valeur</th><th>Classe</th><th class="n">Points</th><th>Sur le maximum</th></tr></thead>
+        <tbody id="detail"></tbody>
+      </table>
+    </div>
+    <p class="note" id="note-detail"></p>
+  </section>
+</div>
+
+<script src="modeles.js"></script>
+<script>
+"use strict";
+
+// ---------------------------------------------------------------------------
+// Définition des formulaires
+// ---------------------------------------------------------------------------
+const SECTEURS = ["Industrie", "Commerce", "BTP", "Services", "Transport", "Hôtellerie-restauration"];
+
+const CONFIG = {
+  entreprise: {
+    modele: MODELES.entreprises,
+    titre: "Risque de défaillance à 12 mois",
+    cote: 50,
+    groupes: [
+      { titre: "Identité", champs: [
+        { id: "secteur", label: "Secteur", type: "select", options: SECTEURS },
+        { id: "effectif", label: "Effectif", unite: "salariés" },
+        { id: "incidents_paiement", label: "Incidents de paiement", aide: "sur 12 mois", unite: "nb" },
+      ]},
+      { titre: "Compte de résultat", champs: [
+        { id: "chiffre_affaires", label: "Chiffre d'affaires", unite: "k€" },
+        { id: "ebe", label: "Excédent brut d'exploitation", aide: "EBE", unite: "k€" },
+      ]},
+      { titre: "Bilan", champs: [
+        { id: "total_actif", label: "Total du bilan", unite: "k€" },
+        { id: "fonds_propres", label: "Fonds propres", unite: "k€" },
+        { id: "dettes_financieres", label: "Dettes financières", aide: "emprunts", unite: "k€" },
+        { id: "tresorerie", label: "Trésorerie", unite: "k€" },
+        { id: "actif_circulant", label: "Actif circulant", aide: "stocks, créances, trésorerie", unite: "k€" },
+        { id: "passif_circulant", label: "Passif circulant", aide: "dettes à moins d'un an", unite: "k€" },
+        { id: "creances_clients", label: "Créances clients", unite: "k€" },
+      ]},
+    ],
+    exemples: {
+      "Boulangerie saine": { secteur: "Commerce", effectif: 12, incidents_paiement: 0, chiffre_affaires: 1500, ebe: 180, total_actif: 900, fonds_propres: 450, dettes_financieres: 150, tresorerie: 200, actif_circulant: 500, passif_circulant: 250, creances_clients: 60 },
+      "Garage moyen": { secteur: "Services", effectif: 6, incidents_paiement: 0, chiffre_affaires: 800, ebe: 56, total_actif: 600, fonds_propres: 150, dettes_financieres: 250, tresorerie: 30, actif_circulant: 300, passif_circulant: 260, creances_clients: 130 },
+      "Restaurant fragile": { secteur: "Hôtellerie-restauration", effectif: 9, incidents_paiement: 3, chiffre_affaires: 950, ebe: -20, total_actif: 1100, fonds_propres: -40, dettes_financieres: 650, tresorerie: 5, actif_circulant: 250, passif_circulant: 420, creances_clients: 10 },
+    },
+    variables: {
+      capacite_remboursement: { nom: "Capacité de remboursement", motif: "Dette élevée par rapport à ce que l'entreprise dégage", fmt: v => v >= 30 ? "EBE ≤ 0" : fmtNb(v, 1) + " ans d'EBE" },
+      autonomie_financiere: { nom: "Autonomie financière", motif: "Fonds propres faibles par rapport au bilan", fmt: v => fmtPct(v) },
+      liquidite_generale: { nom: "Liquidité générale", motif: "Dettes à court terme mal couvertes", fmt: v => fmtNb(v, 2) },
+      tresorerie_actif: { nom: "Trésorerie / bilan", motif: "Trésorerie faible", fmt: v => fmtPct(v) },
+      incidents_paiement: { nom: "Incidents de paiement", motif: "Incidents de paiement récents", fmt: v => fmtNb(v, 0) },
+      delai_clients_jours: { nom: "Délai de paiement des clients", motif: "Clients qui paient lentement", fmt: v => fmtNb(v, 0) + " jours" },
+      log_effectif: { nom: "Taille", motif: "Petite structure", fmt: v => fmtNb(Math.exp(v), 0) + " salariés" },
+      secteur: { nom: "Secteur", motif: "Secteur plus exposé", fmt: v => v },
+    },
+    note: "Ratios calculés à partir du bilan. Capacité de remboursement = (dettes financières − trésorerie) / EBE ; autonomie financière = fonds propres / total du bilan ; liquidité générale = actif circulant / passif circulant ; délai clients = créances clients / chiffre d'affaires × 365.",
+    ratios(s) {
+      const div = (a, b) => (Number.isFinite(a) && Number.isFinite(b) && b !== 0) ? a / b : NaN;
+      return {
+        capacite_remboursement: s.ebe > 0 ? Math.min(div(s.dettes_financieres - s.tresorerie, s.ebe), 30)
+                                : (Number.isFinite(s.ebe) ? 30 : NaN),
+        autonomie_financiere: div(s.fonds_propres, s.total_actif),
+        liquidite_generale: div(s.actif_circulant, s.passif_circulant),
+        tresorerie_actif: div(s.tresorerie, s.total_actif),
+        incidents_paiement: s.incidents_paiement,
+        delai_clients_jours: div(s.creances_clients, s.chiffre_affaires) * 365,
+        log_effectif: s.effectif > 0 ? Math.log(s.effectif) : NaN,
+        secteur: s.secteur,
+      };
+    },
+  },
+
+  particulier: {
+    modele: MODELES.particuliers,
+    titre: "Risque de défaut sur le crédit à 12 mois",
+    cote: 30,
+    groupes: [
+      { titre: "Situation", champs: [
+        { id: "type_contrat", label: "Situation professionnelle", type: "select", options: ["CDI", "Fonctionnaire", "CDD/intérim", "Indépendant", "Retraité", "Sans emploi"] },
+        { id: "statut_logement", label: "Logement", type: "select", options: ["Propriétaire", "Accédant", "Locataire", "Hébergé"] },
+        { id: "revenu_mensuel", label: "Revenu mensuel net", unite: "€" },
+        { id: "epargne", label: "Épargne disponible", unite: "€" },
+      ]},
+      { titre: "Crédits", champs: [
+        { id: "charges_credits", label: "Mensualités de crédits en cours", aide: "y compris immobilier", unite: "€/mois" },
+        { id: "montant_demande", label: "Montant demandé", unite: "€" },
+        { id: "duree_mois", label: "Durée", unite: "mois" },
+        { id: "utilisation_revolving", label: "Utilisation du crédit renouvelable", aide: "laisser vide si aucun", unite: "%" },
+      ]},
+      { titre: "Comportement bancaire", champs: [
+        { id: "jours_decouvert_6m", label: "Jours à découvert", aide: "sur 6 mois", unite: "jours" },
+        { id: "incidents_12m", label: "Incidents de paiement", aide: "sur 12 mois", unite: "nb" },
+      ]},
+    ],
+    exemples: {
+      "Fonctionnaire propriétaire": { type_contrat: "Fonctionnaire", statut_logement: "Propriétaire", revenu_mensuel: 3200, epargne: 15000, charges_credits: 300, montant_demande: 10000, duree_mois: 48, utilisation_revolving: "", jours_decouvert_6m: 0, incidents_12m: 0 },
+      "Salarié locataire": { type_contrat: "CDI", statut_logement: "Locataire", revenu_mensuel: 2100, epargne: 1500, charges_credits: 350, montant_demande: 12000, duree_mois: 60, utilisation_revolving: 40, jours_decouvert_6m: 5, incidents_12m: 0 },
+      "Intérimaire endetté": { type_contrat: "CDD/intérim", statut_logement: "Locataire", revenu_mensuel: 1400, epargne: 0, charges_credits: 450, montant_demande: 8000, duree_mois: 48, utilisation_revolving: 95, jours_decouvert_6m: 35, incidents_12m: 2 },
+    },
+    variables: {
+      jours_decouvert_6m: { nom: "Jours à découvert (6 mois)", motif: "Découverts fréquents", fmt: v => fmtNb(v, 0) + " jours" },
+      revenu_mensuel: { nom: "Revenu mensuel", motif: "Revenu modeste", fmt: v => fmtNb(v, 0) + " €" },
+      taux_endettement: { nom: "Taux d'endettement", motif: "Endettement élevé avec ce crédit", fmt: v => fmtPct(v) },
+      epargne: { nom: "Épargne", motif: "Peu d'épargne de précaution", fmt: v => fmtNb(v, 0) + " €" },
+      utilisation_revolving: { nom: "Crédit renouvelable utilisé", motif: "Crédit renouvelable très utilisé", fmt: v => fmtPct(v) },
+      incidents_12m: { nom: "Incidents de paiement", motif: "Retards de paiement récents", fmt: v => fmtNb(v, 0) },
+      type_contrat: { nom: "Situation professionnelle", motif: "Revenus moins stables", fmt: v => v },
+      statut_logement: { nom: "Logement", motif: "Statut de logement", fmt: v => v },
+    },
+    note: "Taux d'endettement = (mensualités en cours + mensualité du nouveau crédit) / revenu, la mensualité étant calculée à 7 % par an. Le sexe, la nationalité et la situation familiale ne sont pas utilisés.",
+    ratios(s) {
+      const t = 0.07 / 12;
+      const mensualite = s.montant_demande > 0 && s.duree_mois > 0 ? s.montant_demande * t / (1 - Math.pow(1 + t, -s.duree_mois)) : 0;
+      return {
+        jours_decouvert_6m: s.jours_decouvert_6m,
+        revenu_mensuel: s.revenu_mensuel,
+        taux_endettement: s.revenu_mensuel > 0 ? ((s.charges_credits || 0) + mensualite) / s.revenu_mensuel : NaN,
+        epargne: s.epargne,
+        utilisation_revolving: Number.isFinite(s.utilisation_revolving) ? s.utilisation_revolving / 100 : NaN,
+        incidents_12m: s.incidents_12m,
+        type_contrat: s.type_contrat,
+        statut_logement: s.statut_logement,
+        _mensualite: mensualite,
+      };
+    },
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Moteur : même calcul que predire_score() dans fonctions_scoring.R
+// ---------------------------------------------------------------------------
+const num = v => (v === "-Inf" ? -Infinity : v === "Inf" ? Infinity : Number(v));
+
+function noter(modele, ratios) {
+  let eta = modele.constante, score = 0;
+  const lignes = modele.variables.map(v => {
+    const x = ratios[v.nom];
+    let woe, pts, classe;
+    if (v.type === "num") {
+      if (!Number.isFinite(x)) { woe = v.woe_na; pts = v.points_na; classe = "valeur manquante"; }
+      else {
+        const i = v.coupures.filter(c => c < x).length;   // findInterval(..., left.open = TRUE)
+        woe = v.woe[i]; pts = v.points[i]; classe = v.libelles[i];
+      }
+    } else {
+      if (x in v.modalites) { woe = v.woe_modalites[x]; pts = v.modalites[x]; classe = x; }
+      else { woe = v.woe_inconnu; pts = v.points_inconnu; classe = "inconnue"; }
+    }
+    eta += v.coef * woe; score += pts;
+    return { nom: v.nom, valeur: x, classe, points: pts, max: v.max_points, perte: v.max_points - pts };
+  });
+  const pd = 1 / (1 + Math.exp(-eta));
+  const classes = modele.classes.map(c => ({ ...c, min: num(c.score_min) }));
+  const classe = (classes.find(c => score >= c.min) || classes[classes.length - 1]).classe;
+  return { pd, score, classe, nbClasses: classes.length, lignes };
+}
+
+// ---------------------------------------------------------------------------
+// Affichage
+// ---------------------------------------------------------------------------
+const fmtNb = (v, d) => Number.isFinite(v) ? v.toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d }) : "–";
+const fmtPct = v => Number.isFinite(v) ? (100 * v).toLocaleString("fr-FR", { maximumFractionDigits: 1 }) + " %" : "–";
+const $ = id => document.getElementById(id);
+const COULEURS = ["#2c8655", "#4f9a4a", "#7aa83e", "#a7ad31", "#c99a22", "#cf7a24", "#c95b27", "#c0402c", "#a3301f"];
+
+let typeActif = "entreprise";
+const memoire = {};
+
+function construireFormulaire() {
+  const cfg = CONFIG[typeActif];
+  const f = $("formulaire");
+  f.innerHTML = "";
+  const ex = document.createElement("div");
+  ex.className = "exemples";
+  ex.innerHTML = "<span>Exemples :</span>";
+  Object.keys(cfg.exemples).forEach(nom => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.textContent = nom; b.setAttribute("aria-pressed", "false");
+    b.addEventListener("click", () => { remplir(cfg.exemples[nom]); marquerExemple(nom); calculer(); });
+    ex.appendChild(b);
+  });
+  f.appendChild(ex);
+  cfg.groupes.forEach(g => {
+    const fs = document.createElement("fieldset");
+    fs.innerHTML = `<legend>${g.titre}</legend>`;
+    const grille = document.createElement("div");
+    grille.className = "champs";
+    g.champs.forEach(c => {
+      const id = `${typeActif}-${c.id}`;
+      const lab = document.createElement("label");
+      lab.htmlFor = id;
+      lab.innerHTML = `<span>${c.label}${c.aide ? ` <small>(${c.aide})</small>` : ""}</span>`;
+      if (c.type === "select") {
+        const s = document.createElement("select");
+        s.id = id; s.name = c.id;
+        c.options.forEach(o => { const op = document.createElement("option"); op.value = o; op.textContent = o; s.appendChild(op); });
+        lab.appendChild(s);
+      } else {
+        const w = document.createElement("div");
+        w.className = "saisie";
+        w.innerHTML = `<input id="${id}" name="${c.id}" type="number" inputmode="decimal" step="any"><span class="unite">${c.unite || ""}</span>`;
+        lab.appendChild(w);
+      }
+      grille.appendChild(lab);
+    });
+    fs.appendChild(grille);
+    f.appendChild(fs);
+  });
+  f.addEventListener("input", () => { marquerExemple(null); calculer(); });
+}
+
+function remplir(valeurs) {
+  Object.entries(valeurs).forEach(([k, v]) => { const el = $(`${typeActif}-${k}`); if (el) el.value = v; });
+}
+function marquerExemple(nom) {
+  document.querySelectorAll(".chip").forEach(b => b.setAttribute("aria-pressed", String(b.textContent === nom)));
+}
+function lireSaisie() {
+  const s = {};
+  CONFIG[typeActif].groupes.forEach(g => g.champs.forEach(c => {
+    const el = $(`${typeActif}-${c.id}`);
+    s[c.id] = c.type === "select" ? el.value : (el.value.trim() === "" ? NaN : Number(el.value));
+  }));
+  return s;
+}
+
+function calculer() {
+  const cfg = CONFIG[typeActif];
+  const saisie = lireSaisie();
+  memoire[typeActif] = Object.fromEntries(Object.entries(saisie).map(([k, v]) => [k, Number.isNaN(v) ? "" : v]));
+  const ratios = cfg.ratios(saisie);
+  const r = noter(cfg.modele, ratios);
+
+  $("pd").textContent = (100 * r.pd).toLocaleString("fr-FR", { maximumFractionDigits: r.pd < 0.01 ? 2 : 1 }) + " %";
+  const surCent = Math.max(1, Math.round(1 / r.pd));
+  $("pd-texte").textContent = r.pd >= 0.5 ? "plus d'une chance sur deux" : `environ 1 chance sur ${surCent.toLocaleString("fr-FR")}`;
+  $("score").textContent = r.score;
+  $("classe").textContent = `${r.classe} / ${r.nbClasses}`;
+
+  const dec = $("decision");
+  if (cfg.modele.seuil) {
+    const ok = r.score >= cfg.modele.seuil;
+    dec.hidden = false;
+    dec.className = "decision " + (ok ? "ok" : "ko");
+    dec.textContent = ok ? `Accord · score ≥ ${cfg.modele.seuil}` : `Refus · score < ${cfg.modele.seuil}`;
+  } else dec.hidden = true;
+
+  const cases = $("cases");
+  cases.style.gridTemplateColumns = `repeat(${r.nbClasses}, 1fr)`;
+  cases.innerHTML = "";
+  for (let i = 1; i <= r.nbClasses; i++) {
+    const d = document.createElement("div");
+    d.className = "case" + (i === r.classe ? " actif" : "");
+    d.style.background = COULEURS[Math.round((i - 1) * (COULEURS.length - 1) / (r.nbClasses - 1))];
+    d.textContent = i;
+    cases.appendChild(d);
+  }
+  $("legende-max").textContent = `${r.nbClasses} · risque le plus élevé`;
+  $("pd").style.color = COULEURS[Math.round((r.classe - 1) * (COULEURS.length - 1) / (r.nbClasses - 1))];
+
+  const motifs = r.lignes.filter(l => l.perte > 0).sort((a, b) => b.perte - a.perte).slice(0, 3);
+  $("motifs").innerHTML = motifs.length
+    ? motifs.map(l => `<li><span>${cfg.variables[l.nom].motif}</span><em>−${l.perte} pts</em></li>`).join("")
+    : `<li class="rien">Aucun critère ne coûte de points : profil au maximum de la grille.</li>`;
+
+  $("detail").innerHTML = r.lignes.map(l => {
+    const v = cfg.variables[l.nom];
+    const valeur = typeof l.valeur === "string" ? l.valeur : (Number.isFinite(l.valeur) ? v.fmt(l.valeur) : "manquant");
+    const largeur = Math.max(4, Math.round(100 * l.points / l.max));
+    return `<tr><td>${v.nom}</td><td>${valeur}</td><td>${l.classe}</td><td class="n">${l.points} / ${l.max}</td>
+            <td><div class="barre"><i style="width:${largeur}%"></i></div></td></tr>`;
+  }).join("") + `<tr><td><b>Total</b></td><td></td><td></td><td class="n"><b>${r.score}</b></td><td></td></tr>`;
+  let note = cfg.note;
+  if (ratios._mensualite) note += ` Mensualité estimée du nouveau crédit : ${fmtNb(ratios._mensualite, 0)} €.`;
+  $("note-detail").textContent = note;
+}
+
+function changerType(type) {
+  typeActif = type;
+  $("onglet-entreprise").setAttribute("aria-selected", String(type === "entreprise"));
+  $("onglet-particulier").setAttribute("aria-selected", String(type === "particulier"));
+  $("titre-verdict").textContent = CONFIG[type].titre;
+  $("cote").textContent = CONFIG[type].cote;
+  construireFormulaire();
+  const premier = Object.keys(CONFIG[type].exemples)[1];
+  if (memoire[type]) remplir(memoire[type]); else { remplir(CONFIG[type].exemples[premier]); marquerExemple(premier); }
+  calculer();
+}
+
+$("onglet-entreprise").addEventListener("click", () => changerType("entreprise"));
+$("onglet-particulier").addEventListener("click", () => changerType("particulier"));
+changerType("entreprise");
+</script>
+</body>
+</html>

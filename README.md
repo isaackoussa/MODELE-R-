@@ -13,6 +13,8 @@ Rscript scoring_particuliers.R    # défaut des emprunteurs particuliers à 12 m
 |---------|------|
 | `scoring_complet.R` | **tout en un seul fichier** (fonctions + les deux modèles), à copier-coller dans RStudio |
 | `tester_une_entreprise.R` | exemple prêt à l'emploi : noter 3 entreprises fictives (saine, moyenne, fragile) |
+| `app/` | **application web** : formulaire pour noter une entreprise ou un particulier (ouvrir `app/index.html`) |
+| `exporter_modeles_app.R` | met à jour l'application après un réentraînement (écrit `app/modeles.js`) |
 | `fonctions_scoring.R` | boîte à outils commune : binning monotone, WoE/IV, sélection, grille de points, classes de risque, validation, PSI, équité |
 | `scoring_entreprises.R` | ratios financiers issus du bilan, score, notation de 1 à 8, recalibrage sur un taux de défaut de cycle |
 | `scoring_particuliers.R` | score d'octroi, seuil d'acceptation optimisé sur la rentabilité, motifs de refus, audit d'équité |
@@ -91,3 +93,14 @@ recalibrer. C'est ce qu'il faut attendre d'un suivi de modèle.
 
 L'audit des particuliers fait ressortir une sous-estimation du risque des 18-25 ans : 11,5 % de défauts observés
 contre 6,8 % prédits. Une segmentation ou un recalibrage spécifique est à étudier.
+
+## Application web (`app/`)
+
+Un formulaire qui note une entreprise ou un particulier et affiche le résultat à chaque saisie : probabilité de
+défaut, score, classe de risque, ce qui pénalise le plus et détail des points. Le calcul est le même que
+`predire_score()` en R, résultat pour résultat.
+
+- **Sur l'ordinateur** : double-cliquer sur `app/index.html`.
+- **En ligne** : sur GitHub, *Settings → Pages → Branch : `main`, dossier `/ (root)`*, puis ouvrir
+  `https://isaackoussa.github.io/MODELE-R-/app/`.
+- **Après un réentraînement** sur vos données : `Rscript exporter_modeles_app.R`.
