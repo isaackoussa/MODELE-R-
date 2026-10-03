@@ -120,6 +120,31 @@ td.n { text-align: right; white-space: nowrap; }
 .barre i { display: block; height: 100%; background: var(--accent); }
 .note { font-size: 13px; color: var(--muted); margin: 10px 0 0; max-width: 75ch; }
 
+.enreg { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+.enreg input { width: 100%; font: 500 15px var(--f-body); color: var(--ink); background: var(--sunken); border: 1px solid var(--line); border-radius: 7px; padding: 8px 10px; }
+.principal, .secondaire, .petit {
+  font: 600 14px var(--f-display); letter-spacing: .02em; border-radius: 7px; cursor: pointer; white-space: nowrap;
+}
+.principal { background: var(--accent); color: var(--accent-ink); border: 1px solid var(--accent); padding: 9px 16px; }
+.principal:hover { filter: brightness(1.08); }
+.secondaire { background: var(--surface); color: var(--ink); border: 1px solid var(--line); padding: 8px 14px; }
+.secondaire:hover, .petit:hover { border-color: var(--accent); }
+.petit { font-size: 13px; background: transparent; color: var(--accent); border: 1px solid var(--line); padding: 4px 10px; }
+.petit.danger { color: var(--bad); }
+.petit.confirmer { background: var(--bad); border-color: var(--bad); color: #fff; }
+.message { margin: 0; font-size: 13px; min-height: 1.4em; }
+.message.ok { color: var(--good); }
+.message.ko { color: var(--bad); }
+.entete { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 4px; }
+.entete h2 { margin: 0; }
+.compte { color: var(--muted); font: 500 14px var(--f-body); }
+.pastille { display: inline-block; min-width: 2.2em; text-align: center; font: 700 12px var(--f-display); color: #fff; border-radius: 4px; padding: 2px 6px; }
+.type { font-size: 12px; color: var(--muted); }
+tr.courant td { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+td.actions { white-space: nowrap; text-align: right; }
+td.actions .petit + .petit { margin-left: 6px; }
+td.vide { color: var(--muted); text-align: center; padding: 18px 8px; }
+
 @media (max-width: 880px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
   .verdict { position: static; order: -1; }
@@ -162,8 +187,32 @@ td.n { text-align: right; white-space: nowrap; }
         <div class="eyebrow">Ce qui pénalise le plus</div>
         <ul class="motifs" id="motifs"></ul>
       </section>
+      <section class="carte">
+        <div class="eyebrow">Enregistrer ce dossier</div>
+        <div class="enreg">
+          <label for="nom-dossier"><span id="label-nom">Nom de l'entreprise</span>
+            <input id="nom-dossier" type="text" maxlength="120" placeholder="ex. SARL Dupont">
+          </label>
+          <button id="bouton-enregistrer" class="principal" type="button">Enregistrer</button>
+        </div>
+        <p class="message" id="message" role="status"></p>
+      </section>
     </aside>
   </div>
+
+  <section class="detail" id="section-dossiers">
+    <div class="entete">
+      <h2>Dossiers enregistrés <span class="compte" id="nb-dossiers"></span></h2>
+      <button id="bouton-exporter" class="secondaire" type="button" hidden>Exporter pour Excel (CSV)</button>
+    </div>
+    <p class="note" id="lieu-stockage">Chargement des dossiers…</p>
+    <div class="tableau">
+      <table>
+        <thead><tr><th>Nom</th><th>Date</th><th class="n">Risque</th><th class="n">Score</th><th>Classe</th><th>Décision</th><th></th></tr></thead>
+        <tbody id="liste-dossiers"></tbody>
+      </table>
+    </div>
+  </section>
 
   <section class="detail">
     <h2>Détail du calcul</h2>
@@ -338,6 +387,7 @@ const COULEURS = ["#2c8655", "#4f9a4a", "#7aa83e", "#a7ad31", "#c99a22", "#cf7a2
 
 let typeActif = "entreprise";
 const memoire = {};
+let dernier = null;
 
 function construireFormulaire() {
   const cfg = CONFIG[typeActif];
@@ -349,7 +399,10 @@ function construireFormulaire() {
   Object.keys(cfg.exemples).forEach(nom => {
     const b = document.createElement("button");
     b.type = "button"; b.className = "chip"; b.textContent = nom; b.setAttribute("aria-pressed", "false");
-    b.addEventListener("click", () => { remplir(cfg.exemples[nom]); marquerExemple(nom); calculer(); });
+    b.addEventListener("click", () => {
+      remplir(cfg.exemples[nom]); marquerExemple(nom); calculer();
+      dossierCourant = null; $("nom-dossier").value = nom; majBouton(); afficherDossiers();
+    });
     ex.appendChild(b);
   });
   f.appendChild(ex);
@@ -411,6 +464,8 @@ function calculer() {
   $("classe").textContent = `${r.classe} / ${r.nbClasses}`;
 
   const dec = $("decision");
+  dernier = { pd: r.pd, score: r.score, classe: r.classe, nbClasses: r.nbClasses,
+              decision: cfg.modele.seuil ? (r.score >= cfg.modele.seuil ? "Accord" : "Refus") : "" };
   if (cfg.modele.seuil) {
     const ok = r.score >= cfg.modele.seuil;
     dec.hidden = false;
@@ -450,6 +505,8 @@ function calculer() {
 
 function changerType(type) {
   typeActif = type;
+  $("label-nom").textContent = type === "entreprise" ? "Nom de l'entreprise" : "Nom du client";
+  $("nom-dossier").placeholder = type === "entreprise" ? "ex. SARL Dupont" : "ex. M. Kouassi";
   $("onglet-entreprise").setAttribute("aria-selected", String(type === "entreprise"));
   $("onglet-particulier").setAttribute("aria-selected", String(type === "particulier"));
   $("titre-verdict").textContent = CONFIG[type].titre;
@@ -460,9 +517,201 @@ function changerType(type) {
   calculer();
 }
 
-$("onglet-entreprise").addEventListener("click", () => changerType("entreprise"));
-$("onglet-particulier").addEventListener("click", () => changerType("particulier"));
+// ---------------------------------------------------------------------------
+// Enregistrement des dossiers
+//   - dans claude.ai : base de données de la page (gardée d'une visite à l'autre) ;
+//   - ailleurs (fichier ouvert sur l'ordinateur, GitHub Pages) : ce navigateur.
+// ---------------------------------------------------------------------------
+const STOCK = { mode: "attente", db: null, telech: null, dossiers: [] };
+const CLE_LOCALE = "note-credit-dossiers";
+let dossierCourant = null;          // { id, type, nom } du dossier ouvert
+let aSupprimer = null, minuteurSuppr = null, minuteurMessage = null;
+
+const lireLocal = () => { try { return JSON.parse(localStorage.getItem(CLE_LOCALE)) || []; } catch (e) { return []; } };
+const ecrireLocal = l => { try { localStorage.setItem(CLE_LOCALE, JSON.stringify(l)); return true; } catch (e) { return false; } };
+const nouvelId = () => "d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const echapper = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const couleurClasse = (c, n) => COULEURS[Math.round((c - 1) * (COULEURS.length - 1) / (n - 1))];
+
+function message(texte, etat) {
+  const m = $("message");
+  m.textContent = texte; m.className = "message " + (etat || "");
+  clearTimeout(minuteurMessage);
+  minuteurMessage = setTimeout(() => { m.textContent = ""; }, 5000);
+}
+
+async function initStockage() {
+  if (window.claude && typeof window.claude.use === "function") {
+    const [db, dl] = await Promise.all([
+      window.claude.use("db").catch(() => null),
+      window.claude.use("downloads").catch(() => null),
+    ]);
+    STOCK.telech = dl;
+    if (db) {
+      STOCK.db = db; STOCK.mode = "compte";
+      db.collection("dossiers").orderBy("enregistre_le", "desc").limit(1000).onSnapshot(
+        snap => { STOCK.dossiers = snap.docs.map(d => ({ id: d.id, ...d.data() })); afficherDossiers(); },
+        () => { STOCK.mode = "indisponible"; afficherDossiers(); });
+      afficherDossiers();
+      return;
+    }
+  }
+  STOCK.mode = "local";
+  STOCK.dossiers = lireLocal().sort((a, b) => b.enregistre_le.localeCompare(a.enregistre_le));
+  afficherDossiers();
+}
+
+function majBouton() {
+  const nom = $("nom-dossier").value.trim();
+  const maj = dossierCourant && dossierCourant.type === typeActif && dossierCourant.nom === nom;
+  $("bouton-enregistrer").textContent = maj ? "Mettre à jour" : "Enregistrer";
+}
+
+async function enregistrer() {
+  const nom = $("nom-dossier").value.trim();
+  if (!nom) { message("Donnez un nom au dossier avant de l'enregistrer.", "ko"); $("nom-dossier").focus(); return; }
+  if (STOCK.mode === "attente") { message("Un instant, chargement des dossiers en cours.", "ko"); return; }
+  if (STOCK.mode === "indisponible") { message("L'enregistrement n'est pas disponible pour le moment. Rechargez la page.", "ko"); return; }
+  const maj = dossierCourant && dossierCourant.type === typeActif && dossierCourant.nom === nom;
+  const id = maj ? dossierCourant.id : nouvelId();
+  const doc = { type: typeActif, nom, saisie: { ...memoire[typeActif] }, pd: dernier.pd, score: dernier.score,
+                classe: dernier.classe, nb_classes: dernier.nbClasses, decision: dernier.decision,
+                enregistre_le: new Date().toISOString() };
+  if (STOCK.mode === "compte") {
+    try { await STOCK.db.collection("dossiers").doc(id).set(doc); }
+    catch (e) {
+      if (e && e.code === "unavailable") {
+        await new Promise(r => setTimeout(r, 600 + Math.random() * 600));
+        try { await STOCK.db.collection("dossiers").doc(id).set(doc); } catch (e2) { return erreurEcriture(e2); }
+      } else return erreurEcriture(e);
+    }
+  } else {
+    const liste = lireLocal().filter(d => d.id !== id);
+    liste.push({ id, ...doc });
+    if (!ecrireLocal(liste)) { message("Ce navigateur bloque l'enregistrement (navigation privée ?).", "ko"); return; }
+    STOCK.dossiers = liste.sort((a, b) => b.enregistre_le.localeCompare(a.enregistre_le));
+    afficherDossiers();
+  }
+  dossierCourant = { id, type: typeActif, nom };
+  majBouton(); afficherDossiers();
+  message(maj ? `« ${nom} » mis à jour.` : `« ${nom} » enregistré.`, "ok");
+}
+
+function erreurEcriture(e) {
+  const code = e && e.code;
+  if (code === "quota_exceeded") message("Espace plein : supprimez d'anciens dossiers puis réessayez.", "ko");
+  else if (code === "invalid_argument") message("Vous pouvez consulter ces dossiers mais pas en enregistrer.", "ko");
+  else message("L'enregistrement a échoué. Réessayez dans un instant.", "ko");
+}
+
+function ouvrir(id) {
+  const d = STOCK.dossiers.find(x => x.id === id);
+  if (!d) return;
+  memoire[d.type] = { ...d.saisie };
+  changerType(d.type);
+  $("nom-dossier").value = d.nom;
+  dossierCourant = { id: d.id, type: d.type, nom: d.nom };
+  marquerExemple(null); majBouton(); afficherDossiers();
+  message(`« ${d.nom} » ouvert : modifiez les chiffres puis cliquez sur Mettre à jour.`, "ok");
+  const calme = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  window.scrollTo({ top: 0, behavior: calme ? "auto" : "smooth" });
+}
+
+async function supprimer(id) {
+  if (aSupprimer !== id) {                       // 1er clic : demande de confirmation
+    aSupprimer = id; afficherDossiers();
+    clearTimeout(minuteurSuppr);
+    minuteurSuppr = setTimeout(() => { aSupprimer = null; afficherDossiers(); }, 4000);
+    return;
+  }
+  aSupprimer = null; clearTimeout(minuteurSuppr);
+  const d = STOCK.dossiers.find(x => x.id === id);
+  if (STOCK.mode === "compte") {
+    try { await STOCK.db.collection("dossiers").doc(id).delete(); }
+    catch (e) { message("La suppression a échoué. Réessayez.", "ko"); return; }
+  } else {
+    STOCK.dossiers = STOCK.dossiers.filter(x => x.id !== id);
+    ecrireLocal(STOCK.dossiers);
+  }
+  if (dossierCourant && dossierCourant.id === id) { dossierCourant = null; majBouton(); }
+  afficherDossiers();
+  if (d) message(`« ${d.nom} » supprimé.`, "ok");
+}
+
+function afficherDossiers() {
+  const lieu = {
+    attente: "Chargement des dossiers…",
+    compte: "Enregistrés avec cette page dans votre compte Claude : vous les retrouvez à chaque visite, sur ordinateur comme sur téléphone.",
+    local: "Enregistrés dans ce navigateur, sur cet appareil uniquement.",
+    indisponible: "Les dossiers ne peuvent pas être chargés pour le moment. Rechargez la page.",
+  }[STOCK.mode];
+  $("lieu-stockage").textContent = lieu;
+  const n = STOCK.dossiers.length;
+  $("nb-dossiers").textContent = n ? `(${n})` : "";
+  $("bouton-exporter").hidden = !n || !(STOCK.telech || !window.claude);
+  const corps = $("liste-dossiers");
+  if (!n) {
+    corps.innerHTML = `<tr><td class="vide" colspan="7">Aucun dossier enregistré. Remplissez le formulaire, donnez un nom au dossier et cliquez sur Enregistrer.</td></tr>`;
+    return;
+  }
+  corps.innerHTML = STOCK.dossiers.map(d => {
+    const date = new Date(d.enregistre_le).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
+    const pd = (100 * d.pd).toLocaleString("fr-FR", { maximumFractionDigits: d.pd < 0.01 ? 2 : 1 }) + " %";
+    const courant = dossierCourant && dossierCourant.id === d.id ? " class=\"courant\"" : "";
+    const conf = aSupprimer === d.id;
+    return `<tr${courant}>
+      <td>${echapper(d.nom)}<br><span class="type">${d.type === "entreprise" ? "Entreprise" : "Particulier"}</span></td>
+      <td>${date}</td>
+      <td class="n">${pd}</td>
+      <td class="n">${d.score}</td>
+      <td><span class="pastille" style="background:${couleurClasse(d.classe, d.nb_classes)}">${d.classe} / ${d.nb_classes}</span></td>
+      <td>${d.decision || "–"}</td>
+      <td class="actions">
+        <button type="button" class="petit" data-action="ouvrir" data-id="${d.id}">Ouvrir</button>
+        <button type="button" class="petit ${conf ? "confirmer" : "danger"}" data-action="supprimer" data-id="${d.id}">${conf ? "Confirmer ?" : "Supprimer"}</button>
+      </td></tr>`;
+  }).join("");
+}
+
+async function exporter() {
+  if (!STOCK.dossiers.length) return;
+  const champs = [...new Set(STOCK.dossiers.flatMap(d => Object.keys(d.saisie || {})))];
+  const nb = v => typeof v === "number" ? String(v).replace(".", ",") : (v ?? "");
+  const esc = v => { const t = String(v); return /[;"\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+  const lignes = [["nom", "type", "enregistre_le", "risque_pct", "score", "classe", "nb_classes", "decision", ...champs].join(";")];
+  STOCK.dossiers.forEach(d => lignes.push([d.nom, d.type, d.enregistre_le, nb(+(100 * d.pd).toFixed(3)), d.score, d.classe,
+    d.nb_classes, d.decision, ...champs.map(c => nb(d.saisie ? d.saisie[c] : ""))].map(esc).join(";")));
+  const contenu = "﻿" + lignes.join("\r\n");
+  const fichier = "dossiers-note-credit.csv";
+  if (STOCK.telech) {
+    try { await STOCK.telech.save({ filename: fichier, data: contenu }); message("Fichier CSV enregistré.", "ok"); }
+    catch (e) { if (!e || e.code !== "declined") message("Le téléchargement n'est pas possible ici.", "ko"); }
+  } else if (!window.claude) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([contenu], { type: "text/csv;charset=utf-8" }));
+    a.download = fichier; document.body.appendChild(a); a.click(); a.remove();
+  }
+}
+
+$("bouton-enregistrer").addEventListener("click", enregistrer);
+$("nom-dossier").addEventListener("input", majBouton);
+$("nom-dossier").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); enregistrer(); } });
+$("bouton-exporter").addEventListener("click", exporter);
+$("liste-dossiers").addEventListener("click", e => {
+  const b = e.target.closest("button[data-action]");
+  if (!b) return;
+  if (b.dataset.action === "ouvrir") ouvrir(b.dataset.id); else supprimer(b.dataset.id);
+});
+
+function nouveauDossier(type) {
+  dossierCourant = null; $("nom-dossier").value = "";
+  changerType(type); majBouton(); afficherDossiers();
+}
+$("onglet-entreprise").addEventListener("click", () => nouveauDossier("entreprise"));
+$("onglet-particulier").addEventListener("click", () => nouveauDossier("particulier"));
 changerType("entreprise");
+afficherDossiers();
+initStockage();
 </script>
 </body>
 </html>

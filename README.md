@@ -103,4 +103,7 @@ défaut, score, classe de risque, ce qui pénalise le plus et détail des points
 - **Sur l'ordinateur** : double-cliquer sur `app/index.html`.
 - **En ligne** : sur GitHub, *Settings → Pages → Branch : `main`, dossier `/ (root)`*, puis ouvrir
   `https://isaackoussa.github.io/MODELE-R-/app/`.
+- **Enregistrer** : donner un nom au dossier puis « Enregistrer ». Les dossiers se rouvrent, se mettent à jour,
+  se suppriment et s'exportent en CSV pour Excel. Ouverte depuis l'ordinateur ou GitHub Pages, l'application
+  les garde dans le navigateur (sur cet appareil uniquement).
 - **Après un réentraînement** sur vos données : `Rscript exporter_modeles_app.R`.
