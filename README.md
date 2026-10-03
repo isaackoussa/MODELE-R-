@@ -106,4 +106,8 @@ défaut, score, classe de risque, ce qui pénalise le plus et détail des points
 - **Enregistrer** : donner un nom au dossier puis « Enregistrer ». Les dossiers se rouvrent, se mettent à jour,
   se suppriment et s'exportent en CSV pour Excel. Ouverte depuis l'ordinateur ou GitHub Pages, l'application
   les garde dans le navigateur (sur cet appareil uniquement).
+- **Fichier Excel** : onglet « Fichier Excel », déposer un classeur (une ligne par dossier). Les colonnes sont
+  reconnues automatiquement ; pour chaque ligne : score, probabilité de défaut, classe, points faibles et points
+  forts interprétés, conclusion. Résumé des points marquants du fichier, export CSV, enregistrement des dossiers,
+  modèle Excel à télécharger.
 - **Après un réentraînement** sur vos données : `Rscript exporter_modeles_app.R`.

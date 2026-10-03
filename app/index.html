@@ -145,6 +145,57 @@ td.actions { white-space: nowrap; text-align: right; }
 td.actions .petit + .petit { margin-left: 6px; }
 td.vide { color: var(--muted); text-align: center; padding: 18px 8px; }
 
+/* Vue fichier Excel */
+.fichier { display: grid; gap: 16px; min-width: 0; }
+.depot {
+  border: 2px dashed var(--line); border-radius: 12px; background: var(--surface); padding: 28px 16px;
+  display: grid; justify-items: center; gap: 10px; text-align: center; transition: border-color .15s, background .15s;
+}
+.depot.survol { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+.depot-titre { font: 700 20px var(--f-display); margin: 0; }
+.depot .note { margin: 0; max-width: 70ch; }
+.cache { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.lien { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; }
+.resume { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: grid; gap: 14px; }
+.resume h2 { font: 700 18px var(--f-display); margin: 0; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.kpi { background: var(--sunken); border-radius: 8px; padding: 10px 12px; }
+.kpi b { display: block; font: 700 22px/1.1 var(--f-display); }
+.kpi small { color: var(--muted); font-size: 12px; }
+.repartition { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--sunken); }
+.repartition i { display: block; height: 100%; }
+.legende-niveaux { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); }
+.legende-niveaux span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; background: var(--c); vertical-align: -1px; }
+.faits { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.barre-outils { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.barre-outils .groupe { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.barre-outils select { width: auto; }
+.liste-cartes { display: grid; gap: 10px; }
+details.dossier { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+details.dossier > summary {
+  list-style: none; cursor: pointer; padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+}
+details.dossier > summary::-webkit-details-marker { display: none; }
+details.dossier > summary::before { content: "▸"; color: var(--muted); transition: transform .15s; }
+details.dossier[open] > summary::before { transform: rotate(90deg); }
+details.dossier .nom { font: 700 16px var(--f-display); flex: 1 1 180px; min-width: 0; overflow-wrap: anywhere; }
+.badge { font: 700 12px var(--f-display); letter-spacing: .03em; text-transform: uppercase; padding: 4px 8px; border-radius: 5px; color: #fff; white-space: nowrap; }
+.mini { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.corps { padding: 0 16px 16px; display: grid; gap: 14px; border-top: 1px solid var(--line); padding-top: 14px; }
+.conclusion { margin: 0; max-width: 85ch; }
+.deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.deux h4 { font: 700 12px var(--f-display); text-transform: uppercase; letter-spacing: .08em; margin: 0 0 8px; }
+.deux h4.ko { color: var(--bad); }
+.deux h4.ok { color: var(--good); }
+.pts { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.pts li { font-size: 14px; border-left: 3px solid var(--line); padding-left: 10px; }
+.pts.ko li { border-color: var(--bad); }
+.pts.ok li { border-color: var(--good); }
+.pts li b { font-weight: 600; }
+.pts li em { font-style: normal; color: var(--muted); font-size: 13px; margin-left: 6px; }
+details.points > summary { cursor: pointer; color: var(--accent); font-size: 14px; }
+.erreur { color: var(--bad); }
+
 @media (max-width: 880px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
   .verdict { position: static; order: -1; }
@@ -157,17 +208,32 @@ td.vide { color: var(--muted); text-align: center; padding: 18px 8px; }
   <header class="top">
     <div>
       <h1>Note de crédit</h1>
-      <p class="sub">Renseignez la situation, la note se met à jour à chaque saisie : probabilité de défaut à 12 mois, score et ce qui pèse le plus.</p>
+      <p class="sub">Saisissez un dossier ou déposez un fichier Excel : probabilité de défaut à 12 mois, score, points marquants et conclusion.</p>
     </div>
     <div class="tabs" role="tablist" aria-label="Type de dossier">
       <button role="tab" id="onglet-entreprise" aria-selected="true">Entreprise</button>
       <button role="tab" id="onglet-particulier" aria-selected="false">Particulier</button>
+      <button role="tab" id="onglet-fichier" aria-selected="false">Fichier Excel</button>
     </div>
   </header>
 
   <p class="avert">Modèles entraînés sur des données simulées : les chiffres illustrent la méthode. Réentraînez-les sur vos données réelles avant tout usage pour une décision de crédit.</p>
 
-  <div class="layout">
+  <section class="fichier" id="vue-fichier" hidden>
+    <div class="depot" id="depot">
+      <p class="depot-titre">Déposez votre fichier Excel ici</p>
+      <label class="principal" for="entree-fichier">Choisir un fichier</label>
+      <input class="cache" type="file" id="entree-fichier" accept=".xlsx,.xls,.xlsm,.csv">
+      <p class="note">Une ligne par entreprise ou par client. Les colonnes sont reconnues automatiquement : chiffre d'affaires, EBE,
+        total du bilan, fonds propres, dettes financières… pour une entreprise ; revenu, type de contrat, logement, épargne… pour
+        un particulier. Toutes les feuilles du classeur sont lues.</p>
+      <p class="note"><button type="button" class="lien" id="bouton-modele">Télécharger un modèle Excel à remplir</button></p>
+      <p class="note" id="etat-fichier" role="status"></p>
+    </div>
+    <div id="resultat-fichier" class="fichier"></div>
+  </section>
+
+  <div class="layout" id="vue-formulaire">
     <form class="form" id="formulaire" autocomplete="off"></form>
     <aside class="verdict" aria-live="polite">
       <section class="carte">
@@ -214,7 +280,7 @@ td.vide { color: var(--muted); text-align: center; padding: 18px 8px; }
     </div>
   </section>
 
-  <section class="detail">
+  <section class="detail" id="section-detail">
     <h2>Détail du calcul</h2>
     <div class="tableau">
       <table>
@@ -227,6 +293,7 @@ td.vide { color: var(--muted); text-align: center; padding: 18px 8px; }
 </div>
 
 <script src="modeles.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';document.head.appendChild(s)"></script>
 <script>
 "use strict";
 
@@ -703,10 +770,518 @@ $("liste-dossiers").addEventListener("click", e => {
   if (b.dataset.action === "ouvrir") ouvrir(b.dataset.id); else supprimer(b.dataset.id);
 });
 
+function afficherVue(vue) {
+  const fichier = vue === "fichier";
+  $("vue-fichier").hidden = !fichier;
+  $("vue-formulaire").hidden = fichier;
+  $("section-detail").hidden = fichier;
+  $("onglet-fichier").setAttribute("aria-selected", String(fichier));
+  if (fichier) {
+    $("onglet-entreprise").setAttribute("aria-selected", "false");
+    $("onglet-particulier").setAttribute("aria-selected", "false");
+  }
+}
+
 function nouveauDossier(type) {
+  afficherVue("formulaire");
   dossierCourant = null; $("nom-dossier").value = "";
   changerType(type); majBouton(); afficherDossiers();
 }
+
+// ---------------------------------------------------------------------------
+// Analyse d'un fichier Excel : lecture, reconnaissance des colonnes, notation,
+// points marquants, interprétation et conclusion pour chaque ligne
+// ---------------------------------------------------------------------------
+const sansAccent = t => String(t ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "");
+const normaliser = t => sansAccent(t).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+
+const COLONNES = {
+  entreprise: {
+    nom: ["id", "nom", "entreprise", "raison_sociale", "client", "denomination", "societe", "nom_de_l_entreprise"],
+    secteur: ["secteur", "secteur_d_activite", "activite"],
+    effectif: ["effectif", "effectifs", "salaries", "nb_salaries", "nombre_de_salaries"],
+    incidents_paiement: ["incidents_paiement", "incidents_de_paiement", "incidents"],
+    chiffre_affaires: ["chiffre_affaires", "chiffre_d_affaires", "chiffre_d_affaires_net", "ca"],
+    ebe: ["ebe", "excedent_brut_d_exploitation"],
+    total_actif: ["total_actif", "total_bilan", "total_du_bilan"],
+    fonds_propres: ["fonds_propres", "capitaux_propres"],
+    dettes_financieres: ["dettes_financieres", "emprunts", "dettes_bancaires", "emprunts_et_dettes_financieres"],
+    tresorerie: ["tresorerie", "disponibilites"],
+    actif_circulant: ["actif_circulant"],
+    passif_circulant: ["passif_circulant", "dettes_court_terme", "dettes_a_court_terme", "dettes_a_moins_d_un_an"],
+    creances_clients: ["creances_clients", "clients", "creances"],
+  },
+  particulier: {
+    nom: ["id", "nom", "client", "nom_du_client", "emprunteur", "dossier"],
+    type_contrat: ["type_contrat", "contrat", "situation_professionnelle", "emploi"],
+    statut_logement: ["statut_logement", "logement"],
+    revenu_mensuel: ["revenu_mensuel", "revenu", "revenus", "salaire", "revenu_mensuel_net"],
+    epargne: ["epargne", "epargne_disponible"],
+    charges_credits: ["charges_credits", "mensualites_en_cours", "charges", "mensualites"],
+    montant_demande: ["montant_demande", "montant", "montant_du_credit"],
+    duree_mois: ["duree_mois", "duree"],
+    taux_endettement: ["taux_endettement", "endettement"],
+    utilisation_revolving: ["utilisation_revolving", "revolving", "credit_renouvelable"],
+    jours_decouvert_6m: ["jours_decouvert_6m", "jours_decouvert", "decouvert", "jours_a_decouvert"],
+    incidents_12m: ["incidents_12m", "incidents_de_paiement", "incidents"],
+  },
+};
+const CLES_TYPE = {
+  entreprise: ["chiffre_affaires", "ebe", "total_actif", "fonds_propres", "dettes_financieres", "passif_circulant"],
+  particulier: ["revenu_mensuel", "type_contrat", "statut_logement", "jours_decouvert_6m", "epargne", "taux_endettement"],
+};
+
+function reconnaitre(entetes) {
+  const n = entetes.map(normaliser);
+  const carte = type => {
+    const m = {};
+    Object.entries(COLONNES[type]).forEach(([champ, noms]) => {
+      const i = n.findIndex(h => noms.includes(h));
+      if (i >= 0) m[champ] = i;
+    });
+    return m;
+  };
+  const ce = carte("entreprise"), cp = carte("particulier");
+  const se = CLES_TYPE.entreprise.filter(k => k in ce).length, sp = CLES_TYPE.particulier.filter(k => k in cp).length;
+  if (Math.max(se, sp) < 2) return null;
+  return se >= sp ? { type: "entreprise", carte: ce } : { type: "particulier", carte: cp };
+}
+
+function nombre(v) {
+  if (typeof v === "number") return v;
+  if (v === null || v === undefined) return NaN;
+  let t = String(v).replace(/[\s  €$]/g, "");
+  if (t === "" || t === "-") return NaN;
+  const pct = t.endsWith("%");
+  t = t.replace("%", "").replace(",", ".");
+  const x = Number(t);
+  return Number.isFinite(x) ? (pct ? x / 100 : x) : NaN;
+}
+
+function canonSecteur(v) {
+  const t = normaliser(v);
+  if (!t) return "";
+  if (/hotel|restau|hcr/.test(t)) return "Hôtellerie-restauration";
+  if (/btp|batiment|construct|travaux/.test(t)) return "BTP";
+  if (/industr|fabric|manufact/.test(t)) return "Industrie";
+  if (/commerce|negoce|distribution|vente/.test(t)) return "Commerce";
+  if (/transport|logisti/.test(t)) return "Transport";
+  if (/service|conseil/.test(t)) return "Services";
+  return String(v).trim();
+}
+function canonContrat(v) {
+  const t = normaliser(v);
+  if (/fonction/.test(t)) return "Fonctionnaire";
+  if (/cdi/.test(t)) return "CDI";
+  if (/cdd|interim/.test(t)) return "CDD/intérim";
+  if (/independ|liberal|auto_entre|artisan|commercant/.test(t)) return "Indépendant";
+  if (/retrait/.test(t)) return "Retraité";
+  if (/sans|chom/.test(t)) return "Sans emploi";
+  return String(v ?? "").trim();
+}
+function canonLogement(v) {
+  const t = normaliser(v);
+  if (/acced/.test(t)) return "Accédant";
+  if (/propri/.test(t)) return "Propriétaire";
+  if (/locat/.test(t)) return "Locataire";
+  if (/heberg/.test(t)) return "Hébergé";
+  return String(v ?? "").trim();
+}
+
+const NOMS_CHAMPS = {
+  effectif: "effectif", incidents_paiement: "incidents de paiement", chiffre_affaires: "chiffre d'affaires", ebe: "EBE",
+  total_actif: "total du bilan", fonds_propres: "fonds propres", dettes_financieres: "dettes financières",
+  tresorerie: "trésorerie", actif_circulant: "actif circulant", passif_circulant: "passif circulant",
+  creances_clients: "créances clients", secteur: "secteur", revenu_mensuel: "revenu", epargne: "épargne",
+  jours_decouvert_6m: "jours de découvert", incidents_12m: "incidents de paiement", type_contrat: "type de contrat",
+  statut_logement: "logement", taux_endettement: "taux d'endettement",
+};
+
+// Saisie au format du formulaire à partir d'une ligne du fichier
+function lireLigne(type, carte, ligne) {
+  const brut = c => (c in carte ? ligne[carte[c]] : undefined);
+  const s = {}, manquants = [];
+  if (type === "entreprise") {
+    s.secteur = canonSecteur(brut("secteur"));
+    ["effectif", "incidents_paiement", "chiffre_affaires", "ebe", "total_actif", "fonds_propres", "dettes_financieres",
+     "tresorerie", "actif_circulant", "passif_circulant", "creances_clients"].forEach(c => {
+      s[c] = nombre(brut(c));
+      if (!Number.isFinite(s[c])) manquants.push(NOMS_CHAMPS[c]);
+    });
+    if (!s.secteur) manquants.push("secteur");
+  } else {
+    s.type_contrat = canonContrat(brut("type_contrat"));
+    s.statut_logement = canonLogement(brut("statut_logement"));
+    ["revenu_mensuel", "epargne", "charges_credits", "montant_demande", "duree_mois", "jours_decouvert_6m", "incidents_12m"]
+      .forEach(c => { s[c] = nombre(brut(c)); });
+    let rev = nombre(brut("utilisation_revolving"));
+    if (rev > 1.5) rev /= 100;                                // saisi en % (ex. 80)
+    s.utilisation_revolving = Number.isFinite(rev) ? 100 * rev : NaN;
+    let taux = nombre(brut("taux_endettement"));
+    if (taux > 1.5) taux /= 100;
+    if (Number.isFinite(taux) && !Number.isFinite(s.charges_credits) && s.revenu_mensuel > 0) {
+      // taux d'endettement fourni : on retrouve les mensualités en cours correspondantes
+      const t = 0.07 / 12;
+      const mens = s.montant_demande > 0 && s.duree_mois > 0 ? s.montant_demande * t / (1 - Math.pow(1 + t, -s.duree_mois)) : 0;
+      s.charges_credits = Math.max(0, taux * s.revenu_mensuel - mens);
+    }
+    ["revenu_mensuel", "epargne", "jours_decouvert_6m", "incidents_12m"].forEach(c => {
+      if (!Number.isFinite(s[c])) manquants.push(NOMS_CHAMPS[c]);
+    });
+    if (!Number.isFinite(s.charges_credits) && !Number.isFinite(taux)) manquants.push(NOMS_CHAMPS.taux_endettement);
+    if (!s.type_contrat) manquants.push("type de contrat");
+    if (!s.statut_logement) manquants.push("logement");
+  }
+  return { saisie: s, manquants };
+}
+
+const f1 = v => fmtNb(v, 1), f2 = v => fmtNb(v, 2), pc = v => fmtPct(v);
+const INTERPRETATION = {
+  capacite_remboursement: (v) => !Number.isFinite(v) ? "Capacité de remboursement non calculable : EBE ou dettes manquants." :
+    v >= 30 ? "L'EBE est nul ou négatif : l'activité ne dégage aucune ressource pour rembourser ses dettes." :
+    v <= 0 ? "La trésorerie couvre toutes les dettes financières : endettement net nul." :
+    v < 3 ? `La dette nette se rembourse en ${f1(v)} an(s) d'EBE : endettement maîtrisé (repère bancaire : moins de 3 à 4 ans).` :
+    v < 5 ? `La dette nette représente ${f1(v)} ans d'EBE : endettement à surveiller, les banques deviennent prudentes au-delà de 4 ans.` :
+    `La dette nette représente ${f1(v)} ans d'EBE : endettement lourd par rapport à ce que l'entreprise dégage.`,
+  autonomie_financiere: (v) => !Number.isFinite(v) ? "Autonomie financière non calculable : fonds propres ou total du bilan manquants." :
+    v < 0 ? "Fonds propres négatifs : les pertes cumulées dépassent le capital apporté, situation critique." :
+    v < 0.15 ? `Les fonds propres ne représentent que ${pc(v)} du bilan : coussin faible pour absorber des pertes (repère : au moins 20 à 25 %).` :
+    v < 0.30 ? `Les fonds propres représentent ${pc(v)} du bilan : structure financière correcte.` :
+    `Les fonds propres représentent ${pc(v)} du bilan : structure solide, peu dépendante de la dette.`,
+  liquidite_generale: (v) => !Number.isFinite(v) ? "Liquidité non calculable : actif ou passif circulant manquant." :
+    v < 1 ? `L'actif circulant ne couvre pas les dettes à court terme (ratio ${f2(v)}) : risque de tension de trésorerie.` :
+    v < 1.3 ? `Ratio de liquidité de ${f2(v)} : les dettes à court terme sont couvertes, mais de justesse.` :
+    `Ratio de liquidité de ${f2(v)} : dettes à court terme bien couvertes.`,
+  tresorerie_actif: (v) => !Number.isFinite(v) ? "Trésorerie non renseignée." :
+    v < 0.02 ? "Trésorerie quasi nulle : aucune marge en cas d'imprévu." :
+    v < 0.05 ? `Trésorerie faible (${pc(v)} du bilan) : peu de marge de manœuvre.` :
+    v < 0.10 ? `Trésorerie correcte (${pc(v)} du bilan).` : `Trésorerie confortable (${pc(v)} du bilan).`,
+  incidents_paiement: (v) => !Number.isFinite(v) ? "Incidents de paiement non renseignés : traités avec prudence." :
+    v === 0 ? "Aucun incident de paiement sur 12 mois." :
+    `${fmtNb(v, 0)} incident(s) de paiement sur 12 mois : signal d'alerte fort, souvent annonciateur de difficultés.`,
+  delai_clients_jours: (v) => !Number.isFinite(v) ? "Délai de paiement des clients non calculable." :
+    v > 90 ? `Les clients paient en ${fmtNb(v, 0)} jours en moyenne : délai très long qui pèse sur la trésorerie.` :
+    v > 60 ? `Les clients paient en ${fmtNb(v, 0)} jours : délai long, besoin de financement du poste clients.` :
+    v > 30 ? `Les clients paient en ${fmtNb(v, 0)} jours : délai habituel.` :
+    `Les clients paient en ${fmtNb(v, 0)} jours : paiement rapide qui soulage la trésorerie.`,
+  log_effectif: (v) => { const n = Math.round(Math.exp(v));
+    return !Number.isFinite(v) ? "Effectif non renseigné." :
+      n < 5 ? `Très petite structure (${n} salarié${n > 1 ? "s" : ""}) : plus vulnérable à la perte d'un client ou d'un dirigeant.` :
+      n < 50 ? `PME de ${n} salariés.` : `Entreprise de ${n} salariés : une taille qui apporte de la résilience.`; },
+  secteur: (v, l) => l.classe === "inconnue" ? `Secteur « ${v || "non renseigné"} » non reconnu : traité comme le plus risqué par prudence.` :
+    `Secteur ${v} : risque sectoriel ${l.perte === 0 ? "parmi les plus faibles" : l.perte <= 6 ? "moyen" : "plus élevé que la moyenne"}.`,
+
+  jours_decouvert_6m: (v) => !Number.isFinite(v) ? "Jours de découvert non renseignés : traités avec prudence." :
+    v === 0 ? "Aucun jour de découvert sur 6 mois : compte bien tenu." :
+    v <= 10 ? `${fmtNb(v, 0)} jour(s) de découvert sur 6 mois : découverts occasionnels.` :
+    v <= 30 ? `${fmtNb(v, 0)} jours de découvert sur 6 mois : découverts fréquents, budget tendu.` :
+    `${fmtNb(v, 0)} jours de découvert sur 6 mois : budget structurellement déséquilibré.`,
+  revenu_mensuel: (v) => !Number.isFinite(v) ? "Revenu non renseigné." :
+    v < 1200 ? `Revenu modeste (${fmtNb(v, 0)} € par mois) : peu de marge pour absorber un imprévu.` :
+    v < 2500 ? `Revenu intermédiaire (${fmtNb(v, 0)} € par mois).` : `Revenu confortable (${fmtNb(v, 0)} € par mois).`,
+  taux_endettement: (v) => !Number.isFinite(v) ? "Taux d'endettement non calculable." :
+    v > 0.35 ? `Taux d'endettement de ${pc(v)} avec ce crédit : au-dessus du plafond usuel de 33 à 35 %.` :
+    v > 0.30 ? `Taux d'endettement de ${pc(v)} : proche du plafond usuel de 33 à 35 %.` :
+    `Taux d'endettement de ${pc(v)} : charge de remboursement raisonnable.`,
+  epargne: (v, l, r) => { if (!Number.isFinite(v)) return "Épargne non renseignée.";
+    const m = r.revenu_mensuel > 0 ? v / r.revenu_mensuel : NaN;
+    if (!Number.isFinite(m)) return `Épargne de ${fmtNb(v, 0)} €.`;
+    return m < 1 ? `Épargne inférieure à un mois de revenu (${fmtNb(v, 0)} €) : pas de réserve en cas d'imprévu.` :
+      m < 3 ? `Épargne d'environ ${fmtNb(m, 1)} mois de revenu : réserve limitée.` :
+      `Épargne d'environ ${fmtNb(m, 0)} mois de revenu : bonne réserve de sécurité.`; },
+  utilisation_revolving: (v) => !Number.isFinite(v) ? "Pas de crédit renouvelable." :
+    v > 0.8 ? `Crédit renouvelable utilisé à ${pc(v)} : presque saturé, signe d'un besoin de trésorerie.` :
+    v > 0.5 ? `Crédit renouvelable utilisé à ${pc(v)} : fortement sollicité.` : `Crédit renouvelable utilisé à ${pc(v)} : usage modéré.`,
+  incidents_12m: (v) => !Number.isFinite(v) ? "Incidents de paiement non renseignés : traités avec prudence." :
+    v === 0 ? "Aucun incident de paiement sur 12 mois." :
+    `${fmtNb(v, 0)} incident(s) de paiement sur 12 mois : signal d'alerte fort.`,
+  type_contrat: (v, l) => ({ CDI: "Contrat à durée indéterminée : revenus stables.", Fonctionnaire: "Emploi public : revenus très stables.",
+    "CDD/intérim": "Emploi précaire (CDD ou intérim) : revenus moins prévisibles.", Indépendant: "Revenus d'indépendant : variables d'une année à l'autre.",
+    Retraité: "Pension de retraite : revenus stables.", "Sans emploi": "Sans emploi : capacité de remboursement fragile." }[v]
+    || `Situation professionnelle « ${v || "non renseignée"} » non reconnue : traitée avec prudence.`),
+  statut_logement: (v) => ({ Propriétaire: "Propriétaire sans crédit immobilier : patrimoine et faibles charges de logement.",
+    Accédant: "Propriétaire en cours de remboursement : charges de logement élevées, patrimoine en constitution.",
+    Locataire: "Locataire : un loyer à payer chaque mois.", Hébergé: "Hébergé : peu de charges de logement, situation souvent transitoire." }[v]
+    || `Logement « ${v || "non renseigné"} » non reconnu : traité avec prudence.`),
+};
+
+const NIVEAUX = [
+  { max: 0.01, nom: "Risque très faible", couleur: "#2c8655", avis: "Dossier solide : financement envisageable aux conditions standard." },
+  { max: 0.03, nom: "Risque faible", couleur: "#7aa83e", avis: "Financement envisageable avec un suivi courant." },
+  { max: 0.07, nom: "Risque modéré", couleur: "#c99a22", avis: "Financement possible avec prudence : montant adapté, garantie ou caution à envisager, suivi régulier." },
+  { max: 0.15, nom: "Risque élevé", couleur: "#c95b27", avis: "Financement à n'envisager qu'avec des garanties solides et une exposition réduite, sous suivi rapproché." },
+  { max: Infinity, nom: "Risque très élevé", couleur: "#a3301f", avis: "Financement déconseillé en l'état : la situation doit d'abord être redressée." },
+];
+const niveauDe = pd => NIVEAUX.find(n => pd < n.max);
+
+function analyserLigne(type, carte, ligne, numero) {
+  const cfg = CONFIG[type];
+  const nomBrut = "nom" in carte ? ligne[carte.nom] : "";
+  const nom = (nomBrut === null || nomBrut === undefined || String(nomBrut).trim() === "") ? `Ligne ${numero}` : String(nomBrut).trim();
+  const { saisie, manquants } = lireLigne(type, carte, ligne);
+  const ratios = cfg.ratios(saisie);
+  const r = noter(cfg.modele, ratios);
+  const niveau = niveauDe(r.pd);
+  const lignes = r.lignes.map(l => ({ ...l, nomCritere: cfg.variables[l.nom].nom,
+    texte: INTERPRETATION[l.nom](l.valeur, l, ratios) }));
+  const faiblesses = lignes.filter(l => l.perte > 0).sort((a, b) => b.perte - a.perte).slice(0, 3);
+  const forces = lignes.filter(l => l.perte === 0 || l.points >= 0.95 * l.max)
+    .filter(l => !faiblesses.includes(l)).sort((a, b) => b.max - a.max).slice(0, 3);
+  const decision = cfg.modele.seuil ? (r.score >= cfg.modele.seuil ? "Accord" : "Refus") : "";
+  let conclusion = `${niveau.nom} : ${fmtPctPd(r.pd)} de probabilité de défaut à 12 mois, score ${r.score}, classe ${r.classe} sur ${r.nbClasses}. ${niveau.avis}`;
+  if (faiblesses.length) conclusion += ` Point${faiblesses.length > 1 ? "s" : ""} d'attention : ${faiblesses.map(l => l.nomCritere.toLowerCase()).join(", ")}.`;
+  if (forces.length) conclusion += ` Atout${forces.length > 1 ? "s" : ""} : ${forces.map(l => l.nomCritere.toLowerCase()).join(", ")}.`;
+  if (decision) conclusion += ` Décision de la grille : ${decision.toLowerCase()} (seuil ${cfg.modele.seuil} points).`;
+  if (manquants.length) conclusion += " Des données manquent : la note est prudente et à confirmer.";
+  return { numero, type, nom, saisie, ratios, r, niveau, lignes, faiblesses, forces, decision, conclusion, manquants };
+}
+const fmtPctPd = pd => (100 * pd).toLocaleString("fr-FR", { maximumFractionDigits: pd < 0.01 ? 2 : 1 }) + " %";
+
+let ANALYSE = null;   // { fichier, feuilles: [{ nom, type, resultats, ignorees }], courante, tri, affichees }
+
+function lireFichier(fichier) {
+  const etat = $("etat-fichier");
+  if (typeof XLSX === "undefined") {
+    etat.className = "note erreur";
+    etat.textContent = "Le lecteur Excel n'a pas pu être chargé (connexion internet nécessaire). Rechargez la page.";
+    return;
+  }
+  etat.className = "note"; etat.textContent = `Lecture de « ${fichier.name} »…`;
+  const lecteur = new FileReader();
+  lecteur.onerror = () => { etat.className = "note erreur"; etat.textContent = "Impossible de lire ce fichier."; };
+  lecteur.onload = () => {
+    let classeur;
+    try { classeur = XLSX.read(new Uint8Array(lecteur.result), { type: "array", cellDates: true }); }
+    catch (e) { etat.className = "note erreur"; etat.textContent = "Ce fichier n'est pas un classeur Excel lisible (.xlsx, .xls ou .csv)."; return; }
+    const feuilles = [];
+    classeur.SheetNames.forEach(nomFeuille => {
+      const lignes = XLSX.utils.sheet_to_json(classeur.Sheets[nomFeuille], { header: 1, defval: null, blankrows: false });
+      if (lignes.length < 2) return;
+      // la ligne d'en-tête est la première des 10 premières lignes où des colonnes sont reconnues
+      let iEntete = -1, rec = null;
+      for (let i = 0; i < Math.min(10, lignes.length); i++) {
+        rec = reconnaitre(lignes[i].map(x => x ?? ""));
+        if (rec) { iEntete = i; break; }
+      }
+      if (!rec) return;
+      const resultats = [], ignorees = [];
+      lignes.slice(iEntete + 1).forEach((l, k) => {
+        const numero = iEntete + k + 2;
+        const utiles = Object.values(rec.carte).filter(i => l[i] !== null && l[i] !== "").length;
+        if (utiles < 3) { if (utiles > 0) ignorees.push(numero); return; }
+        resultats.push(analyserLigne(rec.type, rec.carte, l, numero));
+      });
+      if (resultats.length) feuilles.push({ nom: nomFeuille, type: rec.type, resultats, ignorees,
+        colonnes: Object.keys(rec.carte).length });
+    });
+    if (!feuilles.length) {
+      etat.className = "note erreur";
+      etat.textContent = "Aucune feuille exploitable : les colonnes n'ont pas été reconnues. Téléchargez le modèle Excel pour voir les noms attendus.";
+      $("resultat-fichier").innerHTML = "";
+      return;
+    }
+    etat.className = "note";
+    etat.textContent = `« ${fichier.name} » lu : ${feuilles.map(f => `${f.nom} (${f.resultats.length} ${f.type === "entreprise" ? "entreprise" : "client"}${f.resultats.length > 1 ? "s" : ""})`).join(", ")}.`;
+    const prioritaire = feuilles.findIndex(f => /noter/i.test(f.nom));
+    ANALYSE = { fichier: fichier.name, feuilles, courante: prioritaire >= 0 ? prioritaire : 0, tri: "risque", affichees: 50 };
+    afficherAnalyse();
+  };
+  lecteur.readAsArrayBuffer(fichier);
+}
+
+function afficherAnalyse() {
+  const A = ANALYSE, F = A.feuilles[A.courante], R = F.resultats;
+  const n = R.length;
+  const parNiveau = NIVEAUX.map(nv => R.filter(x => x.niveau === nv).length);
+  const pdMoy = R.reduce((s, x) => s + x.r.pd, 0) / n;
+  const risques = R.filter(x => x.r.pd >= 0.07).length;
+  const freq = {};
+  R.forEach(x => x.faiblesses.slice(0, 1).forEach(l => { freq[l.nomCritere] = (freq[l.nomCritere] || 0) + 1; }));
+  const topFaiblesse = Object.entries(freq).sort((a, b) => b[1] - a[1])[0];
+  const pires = [...R].sort((a, b) => b.r.pd - a.r.pd).slice(0, 3);
+  const meilleurs = [...R].sort((a, b) => a.r.pd - b.r.pd).slice(0, 3);
+  const incomplets = R.filter(x => x.manquants.length).length;
+  const accords = R.filter(x => x.decision === "Accord").length;
+  const libType = F.type === "entreprise" ? "entreprises" : "clients";
+  const unType = k => k > 1 ? libType : libType.slice(0, -1);
+
+  const faits = [
+    `${risques} ${unType(risques)} sur ${n} en risque élevé ou très élevé (probabilité de défaut de 7 % ou plus).`,
+    `Plus risqués : ${pires.map(x => `${echapper(x.nom)} (${fmtPctPd(x.r.pd)})`).join(", ")}.`,
+    `Plus solides : ${meilleurs.map(x => `${echapper(x.nom)} (${fmtPctPd(x.r.pd)})`).join(", ")}.`,
+  ];
+  if (topFaiblesse) faits.push(`Faiblesse la plus fréquente : ${topFaiblesse[0].toLowerCase()} (premier point faible de ${topFaiblesse[1]} ${unType(topFaiblesse[1])}).`);
+  if (F.type === "particulier") faits.push(`Décision de la grille : ${accords} accord(s) et ${n - accords} refus.`);
+  if (incomplets) faits.push(`${incomplets} ligne(s) avec des données manquantes : notes prudentes, à compléter.`);
+  if (F.ignorees.length) faits.push(`${F.ignorees.length} ligne(s) ignorée(s) car presque vides (lignes ${F.ignorees.slice(0, 8).join(", ")}${F.ignorees.length > 8 ? "…" : ""}).`);
+
+  const ordre = [...R];
+  if (A.tri === "risque") ordre.sort((a, b) => b.r.pd - a.r.pd);
+  else if (A.tri === "solide") ordre.sort((a, b) => a.r.pd - b.r.pd);
+  const visibles = ordre.slice(0, A.affichees);
+  const ouvrir = n <= 5;
+
+  $("resultat-fichier").innerHTML = `
+    <section class="resume">
+      <h2>Points marquants · ${echapper(F.nom)}</h2>
+      <div class="kpis">
+        <div class="kpi"><b>${n}</b><small>${unType(n)} analysé${F.type === "entreprise" ? "e" : ""}${n > 1 ? "s" : ""}</small></div>
+        <div class="kpi"><b>${fmtPctPd(pdMoy)}</b><small>probabilité de défaut moyenne</small></div>
+        <div class="kpi"><b>${risques}</b><small>en risque élevé ou très élevé</small></div>
+        <div class="kpi"><b>${Math.round(R.reduce((s, x) => s + x.r.score, 0) / n)}</b><small>score moyen</small></div>
+      </div>
+      <div class="repartition" aria-hidden="true">${NIVEAUX.map((nv, i) => parNiveau[i] ? `<i style="width:${100 * parNiveau[i] / n}%;background:${nv.couleur}"></i>` : "").join("")}</div>
+      <div class="legende-niveaux">${NIVEAUX.map((nv, i) => `<span style="--c:${nv.couleur}">${nv.nom} : ${parNiveau[i]}</span>`).join("")}</div>
+      <ul class="faits">${faits.map(t => `<li>${t}</li>`).join("")}</ul>
+    </section>
+    <div class="barre-outils">
+      <div class="groupe">
+        ${A.feuilles.length > 1 ? `<label for="choix-feuille" class="mini">Feuille</label>
+          <select id="choix-feuille">${A.feuilles.map((f, i) => `<option value="${i}" ${i === A.courante ? "selected" : ""}>${echapper(f.nom)} (${f.resultats.length})</option>`).join("")}</select>` : ""}
+        <label for="choix-tri" class="mini">Ordre</label>
+        <select id="choix-tri">
+          <option value="risque" ${A.tri === "risque" ? "selected" : ""}>Du plus risqué au plus solide</option>
+          <option value="solide" ${A.tri === "solide" ? "selected" : ""}>Du plus solide au plus risqué</option>
+          <option value="fichier" ${A.tri === "fichier" ? "selected" : ""}>Ordre du fichier</option>
+        </select>
+      </div>
+      <div class="groupe">
+        <button type="button" class="secondaire" id="exporter-analyse">Exporter les résultats (CSV)</button>
+        ${n <= 200 ? `<button type="button" class="principal" id="enregistrer-analyse">${n === 1 ? "Enregistrer ce dossier" : `Enregistrer ces ${n} dossiers`}</button>` : ""}
+      </div>
+    </div>
+    <p class="message" id="message-fichier" role="status"></p>
+    <div class="liste-cartes">${visibles.map(x => carteDossier(x, ouvrir)).join("")}</div>
+    ${n > visibles.length ? `<button type="button" class="secondaire" id="plus-dossiers">Afficher ${Math.min(50, n - visibles.length)} de plus (${n - visibles.length} restants)</button>` : ""}`;
+
+  const sel = $("choix-feuille");
+  if (sel) sel.addEventListener("change", () => { A.courante = Number(sel.value); A.affichees = 50; afficherAnalyse(); });
+  $("choix-tri").addEventListener("change", e => { A.tri = e.target.value; afficherAnalyse(); });
+  $("exporter-analyse").addEventListener("click", exporterAnalyse);
+  const enr = $("enregistrer-analyse");
+  if (enr) enr.addEventListener("click", enregistrerAnalyse);
+  const plus = $("plus-dossiers");
+  if (plus) plus.addEventListener("click", () => { A.affichees += 50; afficherAnalyse(); });
+}
+
+function carteDossier(x, ouvert) {
+  const coul = COULEURS[Math.round((x.r.classe - 1) * (COULEURS.length - 1) / (x.r.nbClasses - 1))];
+  const item = l => `<li><b>${l.nomCritere}</b><em>${l.perte > 0 ? `−${l.perte} pts` : `${l.points} / ${l.max} pts`}</em><br>${echapper(l.texte)}</li>`;
+  const cfg = CONFIG[x.type];
+  return `<details class="dossier"${ouvert ? " open" : ""}>
+    <summary>
+      <span class="nom">${echapper(x.nom)}</span>
+      <span class="badge" style="background:${x.niveau.couleur}">${x.niveau.nom}</span>
+      <span class="mini">Score <b>${x.r.score}</b> · ${fmtPctPd(x.r.pd)} · <span class="pastille" style="background:${coul}">${x.r.classe} / ${x.r.nbClasses}</span>${x.decision ? ` · ${x.decision}` : ""}</span>
+    </summary>
+    <div class="corps">
+      <p class="conclusion"><b>Conclusion.</b> ${echapper(x.conclusion)}</p>
+      <div class="deux">
+        <div><h4 class="ko">Points faibles</h4>${x.faiblesses.length ? `<ul class="pts ko">${x.faiblesses.map(item).join("")}</ul>` : `<p class="note">Aucun critère ne coûte de points.</p>`}</div>
+        <div><h4 class="ok">Points forts</h4>${x.forces.length ? `<ul class="pts ok">${x.forces.map(item).join("")}</ul>` : `<p class="note">Aucun critère au maximum de la grille.</p>`}</div>
+      </div>
+      ${x.manquants.length ? `<p class="note">Données manquantes (traitées avec prudence) : ${echapper(x.manquants.join(", "))}.</p>` : ""}
+      <details class="points"><summary>Détail des points, critère par critère</summary>
+        <div class="tableau"><table>
+          <thead><tr><th>Critère</th><th>Valeur</th><th class="n">Points</th><th>Lecture</th></tr></thead>
+          <tbody>${x.lignes.map(l => `<tr><td>${l.nomCritere}</td>
+            <td>${typeof l.valeur === "string" ? echapper(l.valeur || "–") : (Number.isFinite(l.valeur) ? cfg.variables[l.nom].fmt(l.valeur) : "manquant")}</td>
+            <td class="n">${l.points} / ${l.max}</td><td>${echapper(l.texte)}</td></tr>`).join("")}</tbody>
+        </table></div>
+      </details>
+    </div>
+  </details>`;
+}
+
+function messageFichier(t, etat) { const m = $("message-fichier"); if (m) { m.textContent = t; m.className = "message " + (etat || ""); } }
+
+async function enregistrerAnalyse() {
+  const R = ANALYSE.feuilles[ANALYSE.courante].resultats;
+  if (STOCK.mode !== "compte" && STOCK.mode !== "local") { messageFichier("L'enregistrement n'est pas disponible pour le moment.", "ko"); return; }
+  const bouton = $("enregistrer-analyse"); bouton.disabled = true;
+  let ok = 0;
+  const maintenant = Date.now();
+  const docs = R.map((x, i) => ({ id: nouvelId(), type: x.type, nom: x.nom,
+    saisie: Object.fromEntries(Object.entries(x.saisie).map(([k, v]) => [k, typeof v === "number" && !Number.isFinite(v) ? "" : v])),
+    pd: x.r.pd, score: x.r.score, classe: x.r.classe, nb_classes: x.r.nbClasses, decision: x.decision,
+    enregistre_le: new Date(maintenant - i).toISOString() }));
+  if (STOCK.mode === "compte") {
+    for (const d of docs) {
+      const { id, ...corps } = d;
+      try { await STOCK.db.collection("dossiers").doc(id).set(corps); ok++; messageFichier(`Enregistrement… ${ok} / ${docs.length}`); }
+      catch (e) { erreurEcriture(e); messageFichier(`Arrêt après ${ok} dossier(s) : ${$("message").textContent}`, "ko"); bouton.disabled = false; return; }
+    }
+  } else {
+    const liste = lireLocal().concat(docs);
+    if (!ecrireLocal(liste)) { messageFichier("Ce navigateur bloque l'enregistrement (navigation privée ?).", "ko"); bouton.disabled = false; return; }
+    STOCK.dossiers = liste.sort((a, b) => b.enregistre_le.localeCompare(a.enregistre_le));
+    afficherDossiers(); ok = docs.length;
+  }
+  messageFichier(`${ok} dossier(s) enregistré(s) : ils apparaissent dans « Dossiers enregistrés » plus bas.`, "ok");
+  bouton.disabled = false;
+}
+
+async function exporterAnalyse() {
+  const F = ANALYSE.feuilles[ANALYSE.courante];
+  const esc = v => { const t = String(v ?? ""); return /[;"\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+  const lignes = [["ligne", "nom", "type", "score", "probabilite_defaut_pct", "classe", "nb_classes", "niveau_risque", "decision",
+    "point_faible_1", "point_faible_2", "point_faible_3", "point_fort_1", "point_fort_2", "conclusion", "donnees_manquantes"].join(";")];
+  F.resultats.forEach(x => lignes.push([x.numero, x.nom, x.type, x.r.score, String(+(100 * x.r.pd).toFixed(3)).replace(".", ","),
+    x.r.classe, x.r.nbClasses, x.niveau.nom, x.decision,
+    ...[0, 1, 2].map(i => x.faiblesses[i] ? `${x.faiblesses[i].nomCritere} : ${x.faiblesses[i].texte}` : ""),
+    ...[0, 1].map(i => x.forces[i] ? `${x.forces[i].nomCritere} : ${x.forces[i].texte}` : ""),
+    x.conclusion, x.manquants.join(", ")].map(esc).join(";")));
+  const contenu = "﻿" + lignes.join("\r\n");
+  const nomFichier = "analyse-" + ANALYSE.fichier.replace(/\.[^.]+$/, "").replace(/[^\w-]+/g, "_") + ".csv";
+  await telecharger(nomFichier, contenu, "text/csv;charset=utf-8", messageFichier);
+}
+
+async function telecharger(nomFichier, donnees, mime, signaler) {
+  if (STOCK.telech) {
+    try { await STOCK.telech.save({ filename: nomFichier, data: donnees }); signaler("Fichier enregistré.", "ok"); }
+    catch (e) {
+      if (e && e.code === "declined") return;
+      signaler(e && e.code === "extension_not_enabled" ? "Ce format de fichier n'est pas disponible ici." : "Le téléchargement n'est pas possible ici.", "ko");
+    }
+  } else if (!window.claude) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([donnees], { type: mime }));
+    a.download = nomFichier; document.body.appendChild(a); a.click(); a.remove();
+  } else signaler("Le téléchargement n'est pas disponible dans cette vue.", "ko");
+}
+
+function telechargerModele() {
+  const etat = (t, e) => { const x = $("etat-fichier"); x.textContent = t; x.className = "note " + (e === "ko" ? "erreur" : ""); };
+  if (typeof XLSX === "undefined") { etat("Le lecteur Excel n'a pas pu être chargé : rechargez la page.", "ko"); return; }
+  const wb = XLSX.utils.book_new();
+  const lisez = [["Modèle à remplir : une ligne par entreprise (feuille Entreprises) ou par client (feuille Particuliers)."],
+    ["Gardez les noms de colonnes de la ligne 1. Les lignes 2 sont des exemples : remplacez-les par vos dossiers."],
+    ["Entreprises : montants en milliers d'euros (k€). Secteurs : Industrie, Commerce, BTP, Services, Transport, Hôtellerie-restauration."],
+    ["Particuliers : montants en euros ; taux_endettement en % (ex. 32 %) ; utilisation_revolving en % (vide si aucun)."],
+    ["Contrats : CDI, Fonctionnaire, CDD/intérim, Indépendant, Retraité, Sans emploi. Logement : Propriétaire, Accédant, Locataire, Hébergé."],
+    ["Une case vide = valeur inconnue : la note est alors calculée avec prudence."]];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(lisez), "Mode d'emploi");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    ["nom", "secteur", "effectif", "incidents_paiement", "chiffre_affaires", "ebe", "total_actif", "fonds_propres",
+     "dettes_financieres", "tresorerie", "actif_circulant", "passif_circulant", "creances_clients"],
+    ["SARL Exemple", "Services", 6, 0, 800, 56, 600, 150, 250, 30, 300, 260, 130]]), "Entreprises");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    ["nom", "type_contrat", "statut_logement", "revenu_mensuel", "epargne", "charges_credits", "montant_demande", "duree_mois",
+     "utilisation_revolving", "jours_decouvert_6m", "incidents_12m"],
+    ["M. Exemple", "CDI", "Locataire", 2100, 1500, 350, 12000, 60, "40%", 5, 0]]), "Particuliers");
+  const donnees = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  telecharger("modele-note-credit.xlsx", new Uint8Array(donnees), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", etat);
+}
+
+(function brancherDepot() {
+  const depot = $("depot"), entree = $("entree-fichier");
+  entree.addEventListener("change", () => { if (entree.files[0]) lireFichier(entree.files[0]); entree.value = ""; });
+  ["dragenter", "dragover"].forEach(ev => depot.addEventListener(ev, e => { e.preventDefault(); depot.classList.add("survol"); }));
+  ["dragleave", "drop"].forEach(ev => depot.addEventListener(ev, e => { e.preventDefault(); depot.classList.remove("survol"); }));
+  depot.addEventListener("drop", e => { const f = e.dataTransfer.files[0]; if (f) lireFichier(f); });
+  $("bouton-modele").addEventListener("click", telechargerModele);
+  $("onglet-fichier").addEventListener("click", () => afficherVue("fichier"));
+})();
 $("onglet-entreprise").addEventListener("click", () => nouveauDossier("entreprise"));
 $("onglet-particulier").addEventListener("click", () => nouveauDossier("particulier"));
 changerType("entreprise");
